@@ -1,0 +1,119 @@
+import { useMemo, useState } from 'react'
+import type { Data } from '../../app/useData'
+import type { Ingredient, MenuItem } from '../../db/schema'
+import { SourcePicker, type Source } from './SourcePicker'
+import { MenuGrid } from './MenuGrid'
+import { Ticket } from './Ticket'
+import { useTicket, type TicketLine } from './useTicket'
+import { placeOrder } from './placeOrder'
+import { useToast } from '../../components/Toast'
+import { Modal } from '../../components/Modal'
+import { recipeFor } from '../../domain/deduction'
+import { milkPair, milkUsed, swapMilk } from '../../domain/milk'
+import { repo } from '../../db/repo'
+
+export function BaristaPanel({ data, onPlaced }: { data: Data; onPlaced: () => void }) {
+  const [source, setSource] = useState<Source>({ staff: null, department: null })
+  const [discount, setDiscount] = useState(false)
+  // Only a milk drink asks anything: which of the two milks to pour. `line` is
+  // set when changing the milk on something already on the ticket.
+  const [pending, setPending] = useState<{ item: MenuItem; line?: TicketLine } | null>(null)
+  const ticket = useTicket()
+  const toast = useToast()
+  const canPlace = ticket.lines.length > 0 && (!!source.staff || !!source.department || !!source.walkin)
+
+  const milk = useMemo(() => milkPair(data.ingredients), [data.ingredients])
+  const milkOf = (line: TicketLine) => milk ? milkUsed(recipeFor(line, data.menuItems), milk) : null
+
+  const pick = (item: MenuItem) => {
+    // Anything without milk goes straight on the ticket, as before.
+    if (milk && milkUsed(item.recipe, milk)) setPending({ item })
+    else ticket.add(item)
+  }
+
+  const changeMilk = (line: TicketLine) => {
+    const item = data.menuItems.find(i => i.id === line.itemId)
+    if (!item) { toast('That item is no longer on the menu', 'warn'); return }
+    setPending({ item, line })
+  }
+
+  const chooseMilk = (chosen: Ingredient) => {
+    if (!pending || !milk) return
+    const { item, line } = pending
+    const base = line ? recipeFor(line, data.menuItems) : item.recipe
+    const current = milkUsed(base, milk)
+    const recipe = current && current.id !== chosen.id ? swapMilk(base, current.id, chosen.id) : base
+    if (line) ticket.setRecipe(line.key, recipe, item)
+    else ticket.add(item, recipe)
+    setPending(null)
+  }
+
+  const place = async () => {
+    await placeOrder({
+      staffId: source.staff?.id ?? null,
+      departmentId: source.department?.id ?? source.staff?.departmentId ?? null,
+      lines: ticket.orderLines,
+      walkin: source.walkin,
+      customerName: source.walkinName,
+      discountPct: discount ? 15 : 0,
+    })
+    const ings = await repo.all<Ingredient>('ingredients')
+    const low = ings.filter(i => i.stockQty <= i.lowStockThreshold)
+    toast(`Order placed${low.length ? ` · ${low.length} item(s) low on stock` : ''}`, low.length ? 'warn' : 'ok')
+    ticket.clear(); setSource({ staff: null, department: null }); setDiscount(false); onPlaced()
+  }
+
+  const currentMilk = pending && milk
+    ? milkUsed(pending.line ? recipeFor(pending.line, data.menuItems) : pending.item.recipe, milk)
+    : null
+
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: '440px 1fr', gap: 12, padding: 12, height: '100%', background: '#f9fafb' }}>
+      <div style={{ display: 'grid', gridTemplateRows: 'auto 1fr', gap: 12, minHeight: 0 }}>
+        <SourcePicker data={data} value={source} onChange={setSource} />
+        <Ticket
+          lines={ticket.lines}
+          total={ticket.total}
+          onQty={ticket.setQty}
+          milkOf={milkOf}
+          lactoseFreeId={milk?.lactoseFree.id}
+          onChangeMilk={changeMilk}
+          onClear={ticket.clear}
+          onPlace={place}
+          canPlace={canPlace}
+          discount={discount}
+          onToggleDiscount={() => setDiscount(d => !d)}
+        />
+      </div>
+      <MenuGrid data={data} onPick={pick} />
+
+      <Modal open={!!pending} title={`Milk for ${pending?.item.name ?? ''}`} onClose={() => setPending(null)}>
+        {milk && (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            {[milk.fresh, milk.lactoseFree].map(option => {
+              const selected = currentMilk?.id === option.id
+              return (
+                <button
+                  key={option.id}
+                  onClick={() => chooseMilk(option)}
+                  style={{
+                    aspectRatio: '1 / 1', display: 'grid', alignContent: 'center', justifyItems: 'center', gap: 8,
+                    borderRadius: 16, padding: 16, cursor: 'pointer', textAlign: 'center',
+                    border: selected ? '2px solid #1A1A1A' : '1px solid var(--line)',
+                    background: selected ? '#1A1A1A' : '#fff',
+                    color: selected ? '#fff' : 'var(--ink)',
+                  }}
+                >
+                  <span style={{ fontSize: 20, fontWeight: 800 }}>{option.name}</span>
+                  <span style={{ fontSize: 13, color: selected ? 'rgba(255,255,255,0.65)' : 'var(--muted)' }}>
+                    {option.stockQty}{option.unit} in stock
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+        )}
+      </Modal>
+    </div>
+  )
+}
