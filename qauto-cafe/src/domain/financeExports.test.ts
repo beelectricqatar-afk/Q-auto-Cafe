@@ -86,10 +86,18 @@ describe('business summary PDF', () => {
     }
   })
 
-  it('shows deductions as bracketed figures', async () => {
+  it('shows a genuine deduction in brackets', async () => {
     const pdf = await pdfText([order('a', 1, 12), order('b', 2, 10.2, 15)])
-    expect(pdf).toContain('\\(1.80\\)')   // 12.00 gross - 10.20 net
-    expect(pdf).toContain('\\(140.50\\)') // expenses
+    expect(pdf).toContain('\\(1.80\\)') // discount: 12.00 gross - 10.20 net
+  })
+
+  it('presents expenses and wastage as the make-up of COGS, not as deductions', async () => {
+    // Bracketing them would read as a second subtraction; they are already
+    // inside COGS, so they appear as plain build-up figures.
+    const pdf = await pdfText([order('a', 1, 12), order('b', 2, 10.2, 15)])
+    expect(pdf).toContain('(140.50) Tj')   // expenses, plain
+    expect(pdf).not.toContain('\\(140.50\\)')
+    expect(pdf).toContain('(177.00) Tj')   // COGS = 140.50 expenses + 36.50 wastage
   })
 
   it('carries the period and a page number onto every page', async () => {

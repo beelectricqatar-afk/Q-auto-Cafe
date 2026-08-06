@@ -293,14 +293,16 @@ function buildSummarySections(summary: FinanceSummary): PdfSection[] {
     title: 'Costs & Profits',
     rows: [
       { label: 'Net Sales', cols: [amount(summary.netSales)] },
-      { label: 'COGS', cols: [amount(summary.cogs)], rule: 'dashed' },
+      // Expenses and wastage are shown as the make-up of COGS, not as further
+      // deductions — subtracting them again would double-count.
+      { label: 'Expenses', cols: [amount(summary.expenseTotal)] },
       { label: 'Total Wastage', cols: [amount(summary.wastageTotal)] },
+      { label: 'COGS', cols: [amount(summary.cogs)], rule: 'dashed' },
       { label: 'Gross Profit', cols: [amount(summary.grossProfit)], bold: true, rule: 'solid' },
-      { label: 'Expenses', cols: [deduction(summary.expenseTotal)] },
-      { label: 'Net Profit', cols: [amount(summary.netProfit)], bold: true, rule: 'solid' },
+      { label: 'Net Profit', cols: [amount(summary.netProfit)], bold: true },
     ],
-    note: summary.missingCostItems.length
-      ? `COGS is incomplete: ${summary.missingCostItems.length} item(s) have no ingredient unit cost. Add costs in Inventory.`
+    note: summary.cogs === 0 && summary.netSales > 0
+      ? 'No expenses or wastage recorded for this period, so profit equals net sales.'
       : undefined,
   })
 

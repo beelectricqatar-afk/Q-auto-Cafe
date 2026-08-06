@@ -270,10 +270,13 @@ export function FinanceScreen({ data }: { data: Data }) {
         <MetricCard valueSize={22} icon={TrendUpIcon} label="Net profit" value={formatQar(summary.netProfit)} tone={summary.netProfit >= 0 ? 'good' : 'bad'} />
       </div>
 
-      {summary.missingCostItems.length > 0 && (
+      {/* Without any costs logged, profit just equals sales — say so rather than
+          letting a 100% margin read as a real result. */}
+      {summary.cogs === 0 && summary.netSales > 0 && (
         <div style={{ background: '#fff8e6', border: '1px solid #f0c36a', borderRadius: 16, padding: 24 }}>
-          <strong>COGS needs unit costs:</strong> {summary.missingCostItems.slice(0, 12).join(', ')}
-          {summary.missingCostItems.length > 12 ? ` and ${summary.missingCostItems.length - 12} more` : ''}
+          <strong>No costs recorded for this period.</strong> COGS is expenses plus wastage, and
+          neither has been logged, so profit below is simply net sales. Add expenses and wastage
+          to make these figures meaningful.
         </div>
       )}
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildFinanceSummary, calculateCogs, dayRange, makeExpense, makeWastage, monthRange, orderGross, todayKey } from './finance'
+import { buildFinanceSummary, dayRange, makeExpense, makeWastage, monthRange, orderGross, todayKey } from './finance'
 import type { Category, DeletionLog, Department, Ingredient, MenuItem, Order, Staff } from '../db/schema'
 
 const range = monthRange('2026-03')
@@ -24,8 +24,31 @@ describe('finance calculations', () => {
     expect(orderGross(orders[0])).toBe(22)
   })
 
-  it('calculates COGS from recipe quantities and ingredient unit costs', () => {
-    expect(calculateCogs(orders, menuItems, ingredients).cogs).toBe(11.4)
+  it('treats COGS as expenses plus wastage', () => {
+    const expenses = [makeExpense({ date: '2026-03-10', category: 'supplies', vendor: 'V', description: 'Beans', amountQar: 5, paymentMethod: 'Cash' })]
+    const wastages = [makeWastage({ date: '2026-03-11', itemName: 'Oranges', amountQar: 9 })]
+    const s = buildFinanceSummary({ range, orders, expenses, wastages, deletionLogs, departments, staff, categories, menuItems, ingredients })
+    expect(s.cogs).toBe(14) // 5 + 9
+  })
+
+  it('does not deduct expenses or wastage a second time', () => {
+    const expenses = [makeExpense({ date: '2026-03-10', category: 'supplies', vendor: 'V', description: 'Beans', amountQar: 5, paymentMethod: 'Cash' })]
+    const wastages = [makeWastage({ date: '2026-03-11', itemName: 'Oranges', amountQar: 9 })]
+    const s = buildFinanceSummary({ range, orders, expenses, wastages, deletionLogs, departments, staff, categories, menuItems, ingredients })
+    expect(s.grossProfit).toBe(18)          // 32 net sales - 14 cogs
+    expect(s.netProfit).toBe(s.grossProfit) // nothing left to subtract
+  })
+
+  it('ignores ingredient unit costs entirely', () => {
+    const priced = ingredients.map(i => ({ ...i, unitCostQar: 99 }))
+    const s = buildFinanceSummary({ range, orders, expenses: [], wastages: [], deletionLogs, departments, staff, categories, menuItems, ingredients: priced })
+    expect(s.cogs).toBe(0)
+  })
+
+  it('reports zero COGS when nothing has been recorded', () => {
+    const s = buildFinanceSummary({ range, orders, expenses: [], wastages: [], deletionLogs, departments, staff, categories, menuItems, ingredients })
+    expect(s.cogs).toBe(0)
+    expect(s.netProfit).toBe(s.netSales) // profit collapses to sales
   })
 
   it('builds a monthly finance summary', () => {
@@ -37,15 +60,11 @@ describe('finance calculations', () => {
     expect(summary.discounts).toBe(2)
     expect(summary.expenseTotal).toBe(5)
     expect(summary.wastageTotal).toBe(9)
-    expect(summary.netProfit).toBe(6.6)
+    expect(summary.cogs).toBe(14)
+    expect(summary.netProfit).toBe(18) // 32 - 14
     expect(summary.voids.orderVoids).toBe(1)
     expect(summary.orderTypes.map(r => r.name)).toEqual(expect.arrayContaining(['Call Center - Delivery', 'Walk-In']))
     expect(summary.salesByCategory[0].name).toBe('Hot Drinks')
-  })
-
-  it('tracks missing costs without fabricating COGS', () => {
-    const result = calculateCogs(orders, menuItems, [{ ...ingredients[0], unitCostQar: undefined }, ingredients[1]])
-    expect(result.missingCostItems).toContain('Latte')
   })
 
   it('reports a single day as a whole day', () => {
@@ -85,31 +104,4 @@ describe('finance calculations', () => {
     expect(second.netSales).toBe(0)
   })
 
-  it('costs a tailored line by what it actually used', () => {
-    // Menu latte is 18g beans + 200ml milk = 3.80. This line doubles the milk.
-    const tailored: Order[] = [{
-      ...orders[1],
-      lines: [{ itemId: 'latte', name: 'Latte', qty: 1, unitPrice: 12, recipe: [{ ingredientId: 'beans', qty: 18 }, { ingredientId: 'milk', qty: 400 }] }],
-    }]
-    expect(calculateCogs(tailored, menuItems, ingredients).cogs).toBe(5.8) // 1.80 + 4.00
-  })
-
-  it('costs an emptied line as unknown rather than free', () => {
-    const emptied: Order[] = [{ ...orders[1], lines: [{ itemId: 'latte', name: 'Latte', qty: 1, unitPrice: 12, recipe: [] }] }]
-    const result = calculateCogs(emptied, menuItems, ingredients)
-    expect(result.cogs).toBe(0)
-    expect(result.missingCostItems).toContain('Latte')
-  })
-
-  it('prices a sub-divided ingredient per stocked unit, not per sub-unit', () => {
-    // A lemon costs 2 QAR and yields 10 slices; the mojito uses 4 slices, so
-    // 0.8 QAR per drink — not 8 QAR, which is what pricing slices as lemons gives.
-    const lemon: Ingredient = {
-      id: 'lemon', name: 'Lemon', unit: 'pcs', stockQty: 40, lowStockThreshold: 10,
-      unitCostQar: 2, subUnit: 'slices', subUnitPer: 10,
-    }
-    const mojito: MenuItem = { id: 'mojito', name: 'Mojito', categoryId: 'c1', price: 15, active: true, recipe: [{ ingredientId: 'lemon', qty: 4 }] }
-    const sold: Order[] = [{ id: 'o3', timestamp: range.from + 4000, staffId: 's1', departmentId: 'd1', total: 30, lines: [{ itemId: 'mojito', name: 'Mojito', qty: 2, unitPrice: 15 }] }]
-    expect(calculateCogs(sold, [mojito], [lemon]).cogs).toBe(1.6)
-  })
 })

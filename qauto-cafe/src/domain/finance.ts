@@ -1,5 +1,4 @@
 import type { Category, DeletionLog, Department, FinanceExpense, FinanceWastage, Ingredient, MenuItem, Order, Staff } from '../db/schema'
-import { subDivision } from './deduction'
 
 const round2 = (n: number) => Math.round(n * 100) / 100
 
@@ -36,8 +35,8 @@ export interface FinanceSummary {
   grossSales: number
   discounts: number
   netSales: number
+  /** Expenses plus wastage — everything the cafe spent in the period. */
   cogs: number
-  missingCostItems: string[]
   grossProfit: number
   expenseTotal: number
   wastageTotal: number
@@ -104,35 +103,6 @@ function tagForCategory(categoryName: string): string {
   return /pastr|protein|food/i.test(categoryName) ? 'Food' : 'Drinks'
 }
 
-export function calculateCogs(orders: Order[], items: MenuItem[], ingredients: Ingredient[]): { cogs: number; missingCostItems: string[] } {
-  const itemById = new Map(items.map(i => [i.id, i]))
-  const ingredientById = new Map(ingredients.map(i => [i.id, i]))
-  const missing = new Set<string>()
-  let cogs = 0
-  for (const order of orders) {
-    for (const line of order.lines) {
-      // Cost what the line actually used, which may be a barista's one-off
-      // tailoring rather than the menu recipe.
-      const recipe = line.recipe ?? itemById.get(line.itemId)?.recipe
-      if (!recipe || recipe.length === 0) {
-        missing.add(line.name)
-        continue
-      }
-      for (const recipeLine of recipe) {
-        const ingredient = ingredientById.get(recipeLine.ingredientId)
-        if (ingredient?.unitCostQar == null) {
-          missing.add(line.name)
-          continue
-        }
-        // Recipe qty may be in sub-units (lemon slices) while the cost is per
-        // stocked unit (a whole lemon), so convert before pricing it.
-        const { per } = subDivision(ingredient)
-        cogs += (recipeLine.qty / per) * line.qty * ingredient.unitCostQar
-      }
-    }
-  }
-  return { cogs: round2(cogs), missingCostItems: [...missing].sort() }
-}
 
 function pct(value: number, total: number): number {
   return total ? round2((value / total) * 100) : 0
@@ -157,11 +127,15 @@ export function buildFinanceSummary(input: {
   const grossSales = round2(orders.reduce((sum, order) => sum + orderGross(order), 0))
   const netSales = round2(orders.reduce((sum, order) => sum + order.total, 0))
   const discounts = round2(grossSales - netSales)
-  const { cogs, missingCostItems } = calculateCogs(orders, input.menuItems, input.ingredients)
   const expenseTotal = round2(expenses.reduce((sum, e) => sum + e.amountQar, 0))
   const wastageTotal = round2(wastages.reduce((sum, w) => sum + (w.amountQar ?? 0), 0))
+  // Cost of sales is what the cafe actually spent: everything bought, plus
+  // everything thrown away. Both are already counted here, so nothing further
+  // is deducted below — net profit equals gross profit rather than taking the
+  // same two figures off a second time.
+  const cogs = round2(expenseTotal + wastageTotal)
   const grossProfit = round2(netSales - cogs)
-  const netProfit = round2(grossProfit - expenseTotal - wastageTotal)
+  const netProfit = grossProfit
   const deptName = (id: string | null, walkin?: boolean) =>
     walkin ? 'Walk-In' : (input.departments.find(d => d.id === id)?.name ?? 'Unassigned')
   const staffName = (id: string | null, walkin?: boolean) =>
@@ -227,7 +201,6 @@ export function buildFinanceSummary(input: {
     discounts,
     netSales,
     cogs,
-    missingCostItems,
     grossProfit,
     expenseTotal,
     wastageTotal,
