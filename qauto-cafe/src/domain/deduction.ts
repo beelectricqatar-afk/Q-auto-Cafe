@@ -56,6 +56,22 @@ export function recipeFor(line: OrderLine, items: MenuItem[]): RecipeLine[] {
   return line.recipe ?? items.find(i => i.id === line.itemId)?.recipe ?? []
 }
 
+/**
+ * The exact inverse of `applyDeduction`: puts `amount` back. Sub-units returned
+ * to a part-used unit roll up into whole ones, so undoing a 4-slice drink that
+ * left 6 slices open restores the lemon rather than leaving 10 slices open.
+ */
+export function restoreDeduction(
+  ing: SubDivisible & Pick<Ingredient, 'stockQty' | 'openSubQty'>,
+  amount: number,
+): { stockQty: number; openSubQty: number } {
+  const { per } = subDivision(ing)
+  const open = ing.openSubQty ?? 0
+  if (per === 1) return { stockQty: round3(ing.stockQty + amount), openSubQty: open }
+  const total = open + amount
+  return { stockQty: round3(ing.stockQty + Math.floor(total / per)), openSubQty: total % per }
+}
+
 /** Returns a map of ingredientId -> total quantity to deduct for the given order lines. */
 export function computeDeductions(lines: OrderLine[], items: MenuItem[]): Record<string, number> {
   const byId = new Map(items.map(i => [i.id, i]))

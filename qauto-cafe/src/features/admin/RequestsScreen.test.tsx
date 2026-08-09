@@ -1,8 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { cleanup, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { RequestsScreen } from './RequestsScreen'
+import type { RequestsState } from './useRequests'
 import type { Data } from '../../app/useData'
+import type { Request } from '../../db/schema'
 
 // Keep the screen offline: no cloud reads, no toasts about connectivity.
 vi.mock('../../sync/config', () => ({ isConfigured: () => false }))
@@ -28,9 +30,14 @@ const data: Data = {
 const box = () => screen.getByPlaceholderText(/We need more oranges/i)
 let user: ReturnType<typeof userEvent.setup>
 
+const state = (requests: Request[] = []): RequestsState => ({
+  requests, open: requests.filter(r => !r.done).length, loading: false, failed: false,
+  reload: vi.fn().mockResolvedValue(undefined),
+})
+
 beforeEach(() => {
   user = userEvent.setup()
-  render(<RequestsScreen data={data} />)
+  render(<RequestsScreen data={data} state={state()} />)
 })
 
 describe('Requests inventory type-ahead', () => {
@@ -97,5 +104,67 @@ describe('Requests inventory type-ahead', () => {
     expect(box()).toHaveValue('need Fresh Orange, 5kg')
     // The completed name matches itself, so the list must not reopen.
     expect(screen.queryByRole('listbox')).not.toBeInTheDocument()
+  })
+})
+
+// The real message that used to render as "Fresh Orange Fresh Apple Mint Leaves".
+const listed: Request = {
+  id: 'r1', timestamp: Date.UTC(2026, 7, 5, 9, 30),
+  from: 'Patrick', done: false,
+  message: 'Fresh Orange \n\nFresh Apple \n\nMint Leaves',
+}
+const withQty: Request = {
+  id: 'r2', timestamp: Date.UTC(2026, 7, 4, 8, 0),
+  from: 'Patrick', done: true,
+  message: 'Fresh milk.   - 6 ltrs\nMint leaves -   1 bundle',
+}
+
+const renderWith = (requests: Request[]) => {
+  cleanup()
+  render(<RequestsScreen data={data} state={state(requests)} />)
+}
+
+describe('how a request is listed', () => {
+  it('puts each requested item on its own line', () => {
+    renderWith([listed])
+    for (const item of ['Fresh Orange', 'Fresh Apple', 'Mint Leaves']) {
+      expect(screen.getAllByText(item).length).toBeGreaterThan(0)
+    }
+    // Not run together on one line, which is what the plain string produced.
+    expect(screen.queryByText('Fresh Orange Fresh Apple Mint Leaves')).not.toBeInTheDocument()
+  })
+
+  it('keeps a quantity beside its item rather than under it', () => {
+    renderWith([withQty])
+    expect(screen.getAllByText('Fresh milk. - 6 ltrs').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Mint leaves - 1 bundle').length).toBeGreaterThan(0)
+  })
+})
+
+describe('opening a request', () => {
+  it('shows the full details in a popup', async () => {
+    renderWith([listed])
+    await user.click(screen.getByTitle('Open this request'))
+    const dialog = within(screen.getByRole('dialog', { name: 'Request' }))
+    expect(dialog.getByText('Patrick')).toBeInTheDocument()
+    expect(dialog.getByText('Open')).toBeInTheDocument()
+    for (const item of ['Fresh Orange', 'Fresh Apple', 'Mint Leaves']) {
+      expect(dialog.getByText(item)).toBeInTheDocument()
+    }
+  })
+
+  it('opens for a request that is already done, and offers to reopen it', async () => {
+    renderWith([withQty])
+    await user.click(screen.getByTitle('Open this request'))
+    const dialog = within(screen.getByRole('dialog', { name: 'Request' }))
+    expect(dialog.getByText('Done')).toBeInTheDocument()
+    expect(dialog.getByRole('button', { name: 'Reopen' })).toBeInTheDocument()
+  })
+
+  it('closes again', async () => {
+    renderWith([listed])
+    await user.click(screen.getByTitle('Open this request'))
+    await user.click(screen.getByRole('button', { name: 'Close' }))
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 })

@@ -9,6 +9,7 @@ import { FinanceScreen } from './FinanceScreen'
 import { DirectoryScreen } from './DirectoryScreen'
 import { BackupScreen } from './BackupScreen'
 import { RequestsScreen } from './RequestsScreen'
+import { useRequests } from './useRequests'
 import {
   DashboardIcon, OrdersIcon, BillingIcon, FinanceIcon, InventoryIcon,
   MenuRecipesIcon, DirectoryIcon, BackupIcon, RequestsIcon, ChevronIcon,
@@ -33,6 +34,8 @@ const SECTION_ICONS: Record<Section, ComponentType<{ className?: string }>> = {
 
 export function AdminPanel({ data, refresh }: { data: Data; refresh: () => Promise<void> }) {
   const [section, setSection] = useState<Section>('Dashboard')
+  // Held here, not in the screen, so the badge and the list stay in step.
+  const requests = useRequests()
   const [collapsed, setCollapsed] = useState(false)
   return (
     <div style={{ display: 'grid', gridTemplateColumns: collapsed ? '80px 1fr' : '224px 1fr', height: '100%', transition: 'grid-template-columns .15s ease' }}>
@@ -64,6 +67,21 @@ export function AdminPanel({ data, refresh }: { data: Data; refresh: () => Promi
                   >
                     <Icon className="admin-nav-icon" />
                     {!collapsed && <span style={{ flex: 1 }}>{s}</span>}
+                    {/* Outstanding requests are easy to miss on another screen,
+                        so the count sits on the tab itself. */}
+                    {!collapsed && s === 'Requests' && requests.open > 0 && (
+                      <span
+                        aria-label={`${requests.open} open request${requests.open === 1 ? '' : 's'}`}
+                        style={{
+                          minWidth: 20, textAlign: 'center', borderRadius: 999, padding: '1px 7px',
+                          fontSize: 12, fontWeight: 800,
+                          background: active ? '#fff' : '#1A1A1A',
+                          color: active ? '#1A1A1A' : '#fff',
+                        }}
+                      >
+                        {requests.open}
+                      </span>
+                    )}
                   </button>
                 )
               })}
@@ -88,14 +106,14 @@ export function AdminPanel({ data, refresh }: { data: Data; refresh: () => Promi
       </nav>
       <section style={{ background: '#f9fafb', padding: 20, overflow: 'auto' }}>
         {section === 'Dashboard' && <Dashboard data={data} />}
-        {section === 'Orders' && <OrdersLogScreen data={data} />}
+        {section === 'Orders' && <OrdersLogScreen data={data} refresh={refresh} />}
         {section === 'Billing' && <BillingScreen data={data} />}
         {section === 'Finance' && <FinanceScreen data={data} />}
         {section === 'Inventory' && <InventoryScreen data={data} refresh={refresh} />}
         {section === 'Menu & Recipes' && <MenuRecipesScreen data={data} refresh={refresh} />}
         {section === 'Directory' && <DirectoryScreen data={data} refresh={refresh} />}
         {section === 'Backup' && <BackupScreen data={data} refresh={refresh} />}
-        {section === 'Requests' && <RequestsScreen data={data} />}
+        {section === 'Requests' && <RequestsScreen data={data} state={requests} />}
       </section>
     </div>
   )

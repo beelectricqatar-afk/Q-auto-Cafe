@@ -1,16 +1,17 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { Data } from '../../app/useData'
 import { repo } from '../../db/repo'
-import type { Order, DeletionLog } from '../../db/schema'
+import type { Order } from '../../db/schema'
 import { DataTable, type Column } from '../../components/DataTable'
 import { Modal } from '../../components/Modal'
 import { useToast } from '../../components/Toast'
 import { exportXlsx } from '../../domain/xlsx'
 import { formatQar } from '../../domain/money'
+import { deleteOrder, type DeleteDisposition } from './deleteOrder'
 
 const DELETE_PASSWORD = 'admin'
 
-export function OrdersLogScreen({ data }: { data: Data }) {
+export function OrdersLogScreen({ data, refresh }: { data: Data; refresh: () => Promise<void> }) {
   const [orders, setOrders] = useState<Order[]>([])
   const [dept, setDept] = useState('')
   const [person, setPerson] = useState('')
@@ -29,15 +30,17 @@ export function OrdersLogScreen({ data }: { data: Data }) {
   const itemsText = (o: Order) => o.lines.map(l => `${l.qty}× ${l.name}`).join(', ') + (o.discountPct ? ` · ${o.discountPct}% off` : '')
 
   const closeDelete = () => { setDeleting(null); setPassword(''); setReason('') }
-  const confirmDelete = async () => {
+  const confirmDelete = async (disposition: DeleteDisposition) => {
     if (password !== DELETE_PASSWORD) { toast('Wrong password', 'warn'); return }
     if (!reason.trim()) { toast('A reason is required', 'warn'); return }
     const order = deleting!
-    const log: DeletionLog = { id: crypto.randomUUID(), timestamp: Date.now(), reason: reason.trim(), order }
-    await repo.put('deletionLogs', log)
-    await repo.remove('orders', order.id)
+    const { restored, wastedQar } = await deleteOrder({ order, reason: reason.trim(), disposition })
     setOrders(os => os.filter(o => o.id !== order.id))
-    closeDelete(); toast('Order deleted and logged')
+    closeDelete()
+    toast(disposition === 'restock'
+      ? `Order deleted · ${Object.keys(restored).length} ingredient(s) returned to stock`
+      : `Order deleted · ${formatQar(wastedQar)} booked as wastage`)
+    await refresh()
   }
 
   const cols: Column<Order>[] = [
@@ -94,7 +97,26 @@ export function OrdersLogScreen({ data }: { data: Data }) {
             <label style={{ display: 'grid', gap: 4, fontWeight: 600 }}>Reason for deletion
               <textarea value={reason} onChange={e => setReason(e.target.value)} rows={3} placeholder="Why is this order being deleted?" style={{ padding: 10, borderRadius: 8, border: '1px solid var(--line)', fontFamily: 'inherit' }} />
             </label>
-            <button onClick={confirmDelete} style={{ background: 'var(--danger)', color: '#fff', border: 'none', borderRadius: 10, padding: 12, fontWeight: 800 }}>Delete order</button>
+            <div style={{ fontWeight: 600, marginTop: 4 }}>What happened to the stock?</div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              {([
+                { key: 'restock' as const, title: 'Back to inventory', blurb: 'Never made — put the ingredients back' },
+                { key: 'wastage' as const, title: 'Wastage', blurb: `Made and thrown away — book ${formatQar(deleting.total)}` },
+              ]).map(opt => (
+                <button
+                  key={opt.key}
+                  onClick={() => confirmDelete(opt.key)}
+                  style={{
+                    aspectRatio: '1 / 1', display: 'grid', alignContent: 'center', justifyItems: 'center', gap: 8,
+                    borderRadius: 16, padding: 16, cursor: 'pointer', textAlign: 'center',
+                    border: '1px solid var(--line)', background: '#fff', color: 'var(--ink)',
+                  }}
+                >
+                  <span style={{ fontSize: 18, fontWeight: 800 }}>{opt.title}</span>
+                  <span style={{ fontSize: 13, color: 'var(--muted)' }}>{opt.blurb}</span>
+                </button>
+              ))}
+            </div>
           </div>
         )}
       </Modal>

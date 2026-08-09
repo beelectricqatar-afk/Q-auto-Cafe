@@ -1,20 +1,23 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { Request } from '../../db/schema'
 import type { Data } from '../../app/useData'
 import { client } from '../../sync/client'
-import { isConfigured } from '../../sync/config'
 import { useToast } from '../../components/Toast'
 import { Card } from '../../components/Card'
+import { Modal } from '../../components/Modal'
 import { TrashIcon } from './sidebarIcons'
 import { matchNames, replaceWordAt, wordAt } from '../../domain/search'
+import { requestLines } from '../../domain/requests'
+import type { RequestsState } from './useRequests'
 
 // Requests live directly in the shared cloud (the `meta` table), so every
-// device sees the same list — read live on load, written straight up.
-export function RequestsScreen({ data }: { data: Data }) {
-  const [requests, setRequests] = useState<Request[]>([])
+// device sees the same list. The list itself is held by the admin shell so the
+// sidebar badge and this screen cannot disagree.
+export function RequestsScreen({ data, state }: { data: Data; state: RequestsState }) {
+  const { requests, loading, reload } = state
   const [from, setFrom] = useState('')
   const [message, setMessage] = useState('')
-  const [loading, setLoading] = useState(true)
+  const [viewing, setViewing] = useState<Request | null>(null)
   const toast = useToast()
 
   // Type-ahead over the inventory: completes the word under the caret so a
@@ -65,31 +68,38 @@ export function RequestsScreen({ data }: { data: Data }) {
 
   const syncCaret = (el: HTMLTextAreaElement) => setCaret(el.selectionStart ?? el.value.length)
 
-  const load = async () => {
-    setLoading(true)
-    try { if (isConfigured()) setRequests((await client.listRequests()).sort((a, b) => b.timestamp - a.timestamp)) }
-    catch { toast('Could not load requests (no connection)', 'warn') }
-    finally { setLoading(false) }
-  }
-  useEffect(() => { load() }, [])
+  const load = reload
 
   const send = async () => {
     if (!message.trim()) { toast('Type a request first', 'warn'); return }
     const r: Request = { id: crypto.randomUUID(), timestamp: Date.now(), message: message.trim(), from: from.trim() || undefined, done: false }
-    try { await client.saveRequest(r); setMessage(''); await load(); toast('Request sent to admin') }
+    try { await client.saveRequest(r); setMessage(''); await reload(); toast('Request sent to admin') }
     catch { toast('Could not send (no connection)', 'warn') }
   }
-  const toggle = async (r: Request) => { try { await client.saveRequest({ ...r, done: !r.done }); await load() } catch { toast('No connection', 'warn') } }
-  const remove = async (r: Request) => { try { await client.deleteRequest(r.id); await load() } catch { toast('No connection', 'warn') } }
+  const toggle = async (r: Request) => { try { await client.saveRequest({ ...r, done: !r.done }); await reload() } catch { toast('No connection', 'warn') } }
+  const remove = async (r: Request) => { try { await client.deleteRequest(r.id); await reload() } catch { toast('No connection', 'warn') } }
 
   const openReqs = requests.filter(r => !r.done)
   const doneReqs = requests.filter(r => r.done)
+  /** One requested item per line — see requestLines for why the raw text can't be printed as-is. */
+  const lines = (r: Request, done: boolean) => (
+    <div style={{ display: 'grid', gap: 3 }}>
+      {requestLines(r.message).map((line, i) => (
+        <div key={i} style={{ fontWeight: 600, textDecoration: done ? 'line-through' : 'none' }}>{line}</div>
+      ))}
+    </div>
+  )
+
   const row = (r: Request) => (
     <div key={r.id} className="card-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 }}>
-      <div style={{ opacity: r.done ? 0.55 : 1 }}>
-        <div style={{ fontWeight: 600, textDecoration: r.done ? 'line-through' : 'none' }}>{r.message}</div>
-        <div style={{ color: 'var(--muted)', fontSize: 13 }}>{r.from ? `${r.from} · ` : ''}{new Date(r.timestamp).toLocaleString()}</div>
-      </div>
+      <button
+        onClick={() => setViewing(r)}
+        title="Open this request"
+        style={{ flex: 1, textAlign: 'left', background: 'none', border: 'none', padding: 0, font: 'inherit', cursor: 'pointer', opacity: r.done ? 0.55 : 1 }}
+      >
+        {lines(r, !!r.done)}
+        <div style={{ color: 'var(--muted)', fontSize: 13, marginTop: 4 }}>{r.from ? `${r.from} · ` : ''}{new Date(r.timestamp).toLocaleString()}</div>
+      </button>
       <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
         <button onClick={() => toggle(r)} style={{ border: '1px solid #e5e5e5', background: '#fff', borderRadius: 8, padding: '6px 12px', fontWeight: 700 }}>{r.done ? 'Reopen' : 'Mark done'}</button>
         <button onClick={() => remove(r)} className="icon-btn danger" aria-label="Delete" title="Delete"><TrashIcon /></button>
@@ -159,6 +169,49 @@ export function RequestsScreen({ data }: { data: Data }) {
           {doneReqs.map(row)}
         </Card>
       )}
+
+      <Modal open={!!viewing} title="Request" onClose={() => setViewing(null)}>
+        {viewing && (
+          <div style={{ display: 'grid', gap: 16 }}>
+            <div style={{ color: 'var(--muted)' }}>
+              {viewing.from ? <>From <strong style={{ color: 'var(--ink)' }}>{viewing.from}</strong> · </> : null}
+              {new Date(viewing.timestamp).toLocaleString()} ·{' '}
+              <strong style={{ color: viewing.done ? 'var(--muted)' : 'var(--ink)' }}>{viewing.done ? 'Done' : 'Open'}</strong>
+            </div>
+
+            <div style={{ display: 'grid', gap: 0, border: '1px solid var(--line)', borderRadius: 12, overflow: 'hidden' }}>
+              {requestLines(viewing.message).map((line, i) => (
+                <div
+                  key={i}
+                  style={{
+                    padding: '10px 14px', fontSize: 15,
+                    borderTop: i === 0 ? 'none' : '1px solid var(--line)',
+                    background: i % 2 ? '#fafafa' : '#fff',
+                    textDecoration: viewing.done ? 'line-through' : 'none',
+                  }}
+                >
+                  {line}
+                </div>
+              ))}
+            </div>
+
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button
+                onClick={async () => { await toggle(viewing); setViewing(null) }}
+                style={{ flex: 1, background: '#1A1A1A', color: '#fff', border: 'none', borderRadius: 10, padding: 12, fontWeight: 800 }}
+              >
+                {viewing.done ? 'Reopen' : 'Mark done'}
+              </button>
+              <button
+                onClick={async () => { await remove(viewing); setViewing(null) }}
+                style={{ border: '1px solid var(--danger)', color: 'var(--danger)', background: '#fff', borderRadius: 10, padding: '12px 16px', fontWeight: 700 }}
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        )}
+      </Modal>
     </div>
   )
 }

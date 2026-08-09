@@ -31,7 +31,9 @@ export interface MenuItem { id: string; name: string; categoryId: string; price:
 // recipe", so later edits to the menu still apply to untouched lines.
 export interface OrderLine { itemId: string; name: string; qty: number; unitPrice: number; recipe?: RecipeLine[] }
 export interface Order { id: string; timestamp: number; staffId: string | null; departmentId: string | null; lines: OrderLine[]; total: number; note?: string; walkin?: boolean; customerName?: string; discountPct?: number }
-export type AdjustmentReason = 'order' | 'restock' | 'manual' | 'stocktake'
+// `return` is stock put back when an order is deleted — distinct from `restock`,
+// which is new stock arriving.
+export type AdjustmentReason = 'order' | 'restock' | 'manual' | 'stocktake' | 'return'
 // `delta` is always in whole units. For a sub-divided ingredient an order can
 // consume 0 units (served from the already-opened one), so `subDelta` records
 // what was really used.

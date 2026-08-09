@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { applyDeduction, computeDeductions, recipeFor, recipeSignature, sameRecipe, subDivision, tidyRecipe } from './deduction'
+import { applyDeduction, computeDeductions, recipeFor, recipeSignature, restoreDeduction, sameRecipe, subDivision, tidyRecipe } from './deduction'
 import type { Ingredient, MenuItem, OrderLine } from '../db/schema'
 
 const items: MenuItem[] = [
@@ -147,7 +147,44 @@ describe('applyDeduction', () => {
     expect(applyDeduction(beans, 18)).toEqual({ stockQty: 1982, openSubQty: 0 })
   })
 
+  it('is exactly undone by restoreDeduction', () => {
+    // Whatever state a deduction leaves, putting the same amount back must
+    // return the ingredient to where it started — this is what makes deleting
+    // an order and restocking it safe.
+    for (const need of [1, 4, 9, 10, 11, 25, 40]) {
+      for (const openSubQty of [0, 3, 6, 9]) {
+        const start = { ...lemon, openSubQty }
+        const after = { ...start, ...applyDeduction(start, need) }
+        const back = restoreDeduction(after, need)
+        expect(back, `need=${need} open=${openSubQty}`).toEqual({ stockQty: start.stockQty, openSubQty })
+      }
+    }
+  })
+
   it('keeps fractional stock to 3 decimals when not sub-divided', () => {
     expect(applyDeduction({ ...beans, stockQty: 0.3 }, 0.1).stockQty).toBe(0.2)
+  })
+})
+
+describe('restoreDeduction', () => {
+  it('rolls returned slices back up into whole lemons', () => {
+    // 39 lemons with 6 slices open; returning 4 completes the tenth slice.
+    expect(restoreDeduction({ ...lemon, stockQty: 39, openSubQty: 6 }, 4)).toEqual({ stockQty: 40, openSubQty: 0 })
+  })
+
+  it('returns part of a unit without completing it', () => {
+    expect(restoreDeduction({ ...lemon, stockQty: 39, openSubQty: 2 }, 3)).toEqual({ stockQty: 39, openSubQty: 5 })
+  })
+
+  it('returns several whole units at once', () => {
+    expect(restoreDeduction({ ...lemon, stockQty: 37, openSubQty: 5 }, 25)).toEqual({ stockQty: 40, openSubQty: 0 })
+  })
+
+  it('adds straight back for an ingredient with no sub-unit', () => {
+    expect(restoreDeduction(beans, 18)).toEqual({ stockQty: 2018, openSubQty: 0 })
+  })
+
+  it('lifts negative stock back out of the red', () => {
+    expect(restoreDeduction({ ...lemon, stockQty: -1, openSubQty: 6 }, 4)).toEqual({ stockQty: 0, openSubQty: 0 })
   })
 })
