@@ -33,7 +33,10 @@ export interface OrderLine { itemId: string; name: string; qty: number; unitPric
 /** Which cafe took the order. Absent on anything placed before branches existed. */
 export type Branch = 'audi' | 'volkswagen'
 
-export interface Order { id: string; timestamp: number; staffId: string | null; departmentId: string | null; lines: OrderLine[]; total: number; note?: string; walkin?: boolean; customerName?: string; discountPct?: number; branch?: Branch }
+/** How the order was paid for. Absent on anything placed before this was asked. */
+export type PaymentMethod = 'cash' | 'card'
+
+export interface Order { id: string; timestamp: number; staffId: string | null; departmentId: string | null; lines: OrderLine[]; total: number; note?: string; walkin?: boolean; customerName?: string; discountPct?: number; branch?: Branch; paymentMethod?: PaymentMethod }
 // `return` is stock put back when an order is deleted — distinct from `restock`,
 // which is new stock arriving.
 export type AdjustmentReason = 'order' | 'restock' | 'manual' | 'stocktake' | 'return'

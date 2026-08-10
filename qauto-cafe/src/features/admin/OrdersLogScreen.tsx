@@ -9,6 +9,7 @@ import { exportXlsx } from '../../domain/xlsx'
 import { formatQar } from '../../domain/money'
 import { deleteOrder, type DeleteDisposition } from './deleteOrder'
 import { branchLabel } from '../../domain/branch'
+import { paymentLabel } from '../../domain/payment'
 
 const DELETE_PASSWORD = 'admin'
 
@@ -50,6 +51,7 @@ export function OrdersLogScreen({ data, refresh }: { data: Data; refresh: () => 
     { key: 'staff', header: 'Person', render: o => staffName(o) },
     { key: 'dept', header: 'Department', render: o => deptName(o) },
     { key: 'items', header: 'Items', render: o => itemsText(o) },
+    { key: 'paid', header: 'Paid', render: o => paymentLabel(o.paymentMethod) || '—' },
     { key: 'total', header: 'Total', render: o => formatQar(o.total) },
     { key: 'actions', header: '', render: o => <button onClick={() => setDeleting(o)} style={{ border: '1px solid var(--danger)', color: 'var(--danger)', background: '#fff', borderRadius: 8, padding: '6px 12px' }}>Delete</button> },
   ]

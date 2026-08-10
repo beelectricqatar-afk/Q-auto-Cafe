@@ -1,4 +1,5 @@
 import type { Category, DeletionLog, Department, FinanceExpense, FinanceWastage, Ingredient, MenuItem, Order, Staff } from '../db/schema'
+import { ordersByPayment } from './payment'
 
 const round2 = (n: number) => Math.round(n * 100) / 100
 
@@ -206,7 +207,9 @@ export function buildFinanceSummary(input: {
     wastageTotal,
     netProfit,
     orderTypes: [...orderTypeMap.values()].map(r => ({ ...r, pct: pct(r.orderCount, orderCount) })).sort((a, b) => b.value - a.value),
-    paymentTypes: [{ name: 'Cash', qty: orders.length, value: netSales }],
+    // Real breakdown now the till asks. Orders taken before it did are grouped
+    // as Unassigned rather than assumed to be cash.
+    paymentTypes: ordersByPayment(orders),
     salesByStaff: [...staffMap.values()].map(r => ({ ...r, pct: pct(r.qty, orderCount) })).sort((a, b) => b.value - a.value),
     salesByCategory: [...categoryMap.values()].map(r => ({ ...r, pctQty: pct(r.qty, lineQtyTotal), pctValue: pct(r.value, categoryValueTotal) })).sort((a, b) => b.value - a.value),
     salesByTag: [...tagMap.values()].map(r => ({ ...r, pctQty: pct(r.qty, lineQtyTotal), pctValue: pct(r.value, categoryValueTotal) })).sort((a, b) => b.value - a.value),

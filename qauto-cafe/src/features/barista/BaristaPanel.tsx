@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import type { Data } from '../../app/useData'
-import type { Branch, Ingredient, MenuItem } from '../../db/schema'
+import type { Branch, Ingredient, MenuItem, PaymentMethod } from '../../db/schema'
 import { SourcePicker, type Source } from './SourcePicker'
 import { MenuGrid } from './MenuGrid'
 import { Ticket } from './Ticket'
@@ -11,6 +11,8 @@ import { Modal } from '../../components/Modal'
 import { recipeFor } from '../../domain/deduction'
 import { milkPair, milkUsed, swapMilk } from '../../domain/milk'
 import { BRANCHES, branchLabel } from '../../domain/branch'
+import { PAYMENT_METHODS, paymentLabel } from '../../domain/payment'
+import { DollarIcon, WalletIcon } from '../admin/sidebarIcons'
 import audiLogo from '../../assets/brand/audi.jpg'
 import volkswagenLogo from '../../assets/brand/volkswagen.jpg'
 
@@ -23,8 +25,10 @@ export function BaristaPanel({ data, onPlaced }: { data: Data; onPlaced: () => v
   // Only a milk drink asks anything: which of the two milks to pour. `line` is
   // set when changing the milk on something already on the ticket.
   const [pending, setPending] = useState<{ item: MenuItem; line?: TicketLine } | null>(null)
-  // Placing asks which cafe the order is for before it is written.
+  // Placing asks two things before the order is written: which cafe, then how
+  // it was paid. `pendingBranch` holds the first answer while the second is asked.
   const [choosingBranch, setChoosingBranch] = useState(false)
+  const [pendingBranch, setPendingBranch] = useState<Branch | null>(null)
   const ticket = useTicket()
   const toast = useToast()
   // Items alone are enough to place — the button goes white and live as soon as
@@ -58,8 +62,8 @@ export function BaristaPanel({ data, onPlaced }: { data: Data; onPlaced: () => v
     setPending(null)
   }
 
-  const place = async (branch: Branch) => {
-    setChoosingBranch(false)
+  const place = async (branch: Branch, paymentMethod: PaymentMethod) => {
+    setPendingBranch(null)
     await placeOrder({
       staffId: source.staff?.id ?? null,
       departmentId: source.department?.id ?? source.staff?.departmentId ?? null,
@@ -68,6 +72,7 @@ export function BaristaPanel({ data, onPlaced }: { data: Data; onPlaced: () => v
       customerName: source.walkinName,
       discountPct: discount ? 15 : 0,
       branch,
+      paymentMethod,
     })
     const ings = await repo.all<Ingredient>('ingredients')
     const low = ings.filter(i => i.stockQty <= i.lowStockThreshold)
@@ -104,7 +109,7 @@ export function BaristaPanel({ data, onPlaced }: { data: Data; onPlaced: () => v
           {BRANCHES.map(b => (
             <button
               key={b}
-              onClick={() => place(b)}
+              onClick={() => { setChoosingBranch(false); setPendingBranch(b) }}
               style={{
                 aspectRatio: '1 / 1', display: 'grid', alignContent: 'center', justifyItems: 'center', gap: 12,
                 borderRadius: 16, padding: 16, cursor: 'pointer', textAlign: 'center',
@@ -119,6 +124,32 @@ export function BaristaPanel({ data, onPlaced }: { data: Data; onPlaced: () => v
               <span style={{ fontSize: 20, fontWeight: 800 }}>{branchLabel(b)}</span>
             </button>
           ))}
+        </div>
+      </Modal>
+
+      <Modal
+        open={!!pendingBranch}
+        title={`How is this ${branchLabel(pendingBranch ?? undefined)} order paid?`}
+        onClose={() => setPendingBranch(null)}
+      >
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          {PAYMENT_METHODS.map(m => {
+            const Icon = m === 'cash' ? DollarIcon : WalletIcon
+            return (
+              <button
+                key={m}
+                onClick={() => pendingBranch && place(pendingBranch, m)}
+                style={{
+                  aspectRatio: '1 / 1', display: 'grid', alignContent: 'center', justifyItems: 'center', gap: 12,
+                  borderRadius: 16, padding: 16, cursor: 'pointer', textAlign: 'center',
+                  border: 'none', background: '#1A1A1A', color: '#fff',
+                }}
+              >
+                <Icon className="pay-icon" />
+                <span style={{ fontSize: 20, fontWeight: 800 }}>{paymentLabel(m)}</span>
+              </button>
+            )
+          })}
         </div>
       </Modal>
 

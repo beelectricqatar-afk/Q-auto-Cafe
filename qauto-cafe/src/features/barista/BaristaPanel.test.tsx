@@ -55,10 +55,12 @@ const tile = (name: RegExp) => screen.getByRole('button', { name })
 const ticket = () => within(screen.getByRole('region', { name: 'Ticket' }))
 const milkDialog = () => screen.getByRole('dialog', { name: /^Milk for/ })
 const cafeDialog = () => screen.getByRole('dialog', { name: /Which cafe/ })
-/** Place Order now asks which cafe before the order is written. */
-const chooseCafe = async (name: 'Audi' | 'Volkswagen' = 'Audi') => {
+const payDialog = () => screen.getByRole('dialog', { name: /How is this/ })
+/** Placing now asks two things: which cafe, then how it was paid. */
+const chooseCafe = async (name: 'Audi' | 'Volkswagen' = 'Audi', pay: 'Cash' | 'Card' = 'Cash') => {
   await user.click(screen.getByRole('button', { name: 'Place Order' }))
   await user.click(within(cafeDialog()).getByRole('button', { name }))
+  await user.click(within(payDialog()).getByRole('button', { name: pay }))
 }
 const placeWalkIn = async () => {
   await user.click(screen.getByRole('button', { name: 'Walk-in' }))
@@ -209,13 +211,22 @@ describe('the Place Order button', () => {
 })
 
 describe('choosing the cafe', () => {
-  const orders = () => repo.all<{ branch?: string; total: number }>('orders')
+  const orders = () => repo.all<{ branch?: string; paymentMethod?: string; total: number }>('orders')
 
   it('asks which cafe instead of placing straight away', async () => {
     await user.click(tile(/Espresso/))
     await user.click(screen.getByRole('button', { name: 'Place Order' }))
     expect(cafeDialog()).toBeInTheDocument()
     expect(await orders()).toHaveLength(0) // nothing written yet
+  })
+
+  it('asks how it was paid after the cafe, still writing nothing', async () => {
+    await user.click(tile(/Espresso/))
+    await user.click(screen.getByRole('button', { name: 'Place Order' }))
+    await user.click(within(cafeDialog()).getByRole('button', { name: 'Audi' }))
+    expect(payDialog()).toBeInTheDocument()
+    expect(screen.queryByRole('dialog', { name: /Which cafe/ })).not.toBeInTheDocument()
+    expect(await orders()).toHaveLength(0)
   })
 
   it('offers both cafes', async () => {
@@ -238,12 +249,38 @@ describe('choosing the cafe', () => {
     expect((await orders())[0].branch).toBe('volkswagen')
   })
 
-  it('places nothing if the chooser is dismissed', async () => {
+  it('places nothing if the cafe chooser is dismissed', async () => {
     await user.click(tile(/Espresso/))
     await user.click(screen.getByRole('button', { name: 'Place Order' }))
     await user.click(screen.getByRole('button', { name: 'Close' }))
     expect(await orders()).toHaveLength(0)
     expect(ticket().getByText('Espresso')).toBeInTheDocument() // ticket intact
+  })
+
+  it('places nothing if the payment chooser is dismissed', async () => {
+    await user.click(tile(/Espresso/))
+    await user.click(screen.getByRole('button', { name: 'Place Order' }))
+    await user.click(within(cafeDialog()).getByRole('button', { name: 'Audi' }))
+    await user.click(screen.getByRole('button', { name: 'Close' }))
+    expect(await orders()).toHaveLength(0)
+    expect(ticket().getByText('Espresso')).toBeInTheDocument()
+  })
+
+  it('records cash and card', async () => {
+    await user.click(tile(/Espresso/))
+    await chooseCafe('Audi', 'Cash')
+    expect((await orders())[0].paymentMethod).toBe('cash')
+
+    await user.click(tile(/Espresso/))
+    await chooseCafe('Volkswagen', 'Card')
+    const both = await orders()
+    expect(both.map(o => o.paymentMethod).sort()).toEqual(['card', 'cash'])
+  })
+
+  it('keeps the cafe chosen in the first step', async () => {
+    await user.click(tile(/Espresso/))
+    await chooseCafe('Volkswagen', 'Card')
+    expect((await orders())[0]).toMatchObject({ branch: 'volkswagen', paymentMethod: 'card' })
   })
 
   it('clears the ticket once a cafe is chosen', async () => {

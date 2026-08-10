@@ -3,6 +3,7 @@ import { exportXlsx, type XlsxColumn } from './xlsx'
 import { buildPdf, fitText, PAGE_W, type Draw, type RGB } from './pdf'
 import { applyDiscount } from './money'
 import { branchLabel, ordersByBranch } from './branch'
+import { paymentLabel } from './payment'
 import { EXPENSE_CATEGORIES, makeExpense, orderGross, type FinanceSummary } from './finance'
 import type { Data } from '../app/useData'
 import type { FinanceExpense, Order } from '../db/schema'
@@ -64,6 +65,7 @@ export type DetailedSalesRow = {
   orderNo: number
   orderTime: string
   cafe: string
+  paidBy: string
   orderType: string
   orderTakenBy: string
   customerName: string
@@ -85,6 +87,7 @@ export function detailedSalesRows(orders: Order[], data: Data): DetailedSalesRow
         orderNo: index + 1,
         orderTime: new Date(order.timestamp).toISOString().slice(0, 16).replace('T', ' '),
         cafe: branchLabel(order.branch),
+        paidBy: paymentLabel(order.paymentMethod),
         orderType: order.walkin ? 'Walk-In' : 'Call Center',
         orderTakenBy: staffName(data, order.staffId) || 'Q Cafe POS',
         customerName: order.walkin ? (order.customerName || 'Walk In') : staffName(data, order.staffId),
@@ -108,6 +111,7 @@ export function exportDetailedSales(orders: Order[], data: Data, rangeKey: strin
     { header: 'Order No', key: 'orderNo', width: 12 },
     { header: 'Order Time', key: 'orderTime', width: 20 },
     { header: 'Cafe', key: 'cafe', width: 14 },
+    { header: 'Paid By', key: 'paidBy', width: 12 },
     { header: 'Order Type', key: 'orderType', width: 18 },
     { header: 'Order Taken By', key: 'orderTakenBy', width: 24 },
     { header: 'Customer Name', key: 'customerName', width: 28 },

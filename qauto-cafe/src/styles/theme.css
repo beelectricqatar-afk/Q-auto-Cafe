@@ -17,6 +17,9 @@ button{font-family:inherit;cursor:pointer;min-height:var(--tap)}
 .admin-nav-item.active:hover{background:#1A1A1A}
 .admin-nav-icon{width:18px;height:18px;flex-shrink:0}
 .metric-card-icon{width:24px;height:24px;flex-shrink:0}
+/* makeIcon sets no intrinsic size, so every icon needs a class. Sized to sit
+   alongside the branch logos on the payment cards. */
+.pay-icon{width:44px;height:44px;flex-shrink:0}
 .card-row{border-bottom:1px solid #e5e5e5;padding:14px 24px}
 .card-row:last-child{border-bottom:none}
 .card-row:hover{background:#F9FAFB}
