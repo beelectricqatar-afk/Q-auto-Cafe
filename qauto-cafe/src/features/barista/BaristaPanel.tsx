@@ -36,6 +36,9 @@ export function BaristaPanel({ data, onPlaced }: { data: Data; onPlaced: () => v
   // order as a walk-in with no name.
   const canPlace = ticket.lines.length > 0
 
+  // Matches placeOrder's own rule — an order with no source is a walk-in too.
+  const isWalkin = !!source.walkin || (!source.staff && !source.department)
+
   const milk = useMemo(() => milkPair(data.ingredients), [data.ingredients])
   const milkOf = (line: TicketLine) => milk ? milkUsed(recipeFor(line, data.menuItems), milk) : null
 
@@ -62,7 +65,7 @@ export function BaristaPanel({ data, onPlaced }: { data: Data; onPlaced: () => v
     setPending(null)
   }
 
-  const place = async (branch: Branch, paymentMethod: PaymentMethod) => {
+  const place = async (branch: Branch, paymentMethod?: PaymentMethod) => {
     setPendingBranch(null)
     await placeOrder({
       staffId: source.staff?.id ?? null,
@@ -109,7 +112,7 @@ export function BaristaPanel({ data, onPlaced }: { data: Data; onPlaced: () => v
           {BRANCHES.map(b => (
             <button
               key={b}
-              onClick={() => { setChoosingBranch(false); setPendingBranch(b) }}
+              onClick={() => { setChoosingBranch(false); if (isWalkin) setPendingBranch(b); else void place(b) }}
               style={{
                 aspectRatio: '1 / 1', display: 'grid', alignContent: 'center', justifyItems: 'center', gap: 12,
                 borderRadius: 16, padding: 16, cursor: 'pointer', textAlign: 'center',

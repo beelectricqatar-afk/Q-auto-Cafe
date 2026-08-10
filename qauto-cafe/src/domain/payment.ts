@@ -14,14 +14,17 @@ export function paymentLabel(method: PaymentMethod | undefined): string {
 }
 
 /**
- * Totals per payment method for reporting. Orders taken before the barista was
- * asked are grouped as Unassigned rather than assumed to be cash — the figure
- * would otherwise assert something never recorded.
+ * Totals per payment method for reporting.
+ *
+ * Only walk-ins pay at the till, so a department order legitimately has no
+ * method — it is billed to the department instead, and is reported that way
+ * rather than as a gap. A walk-in with nothing recorded predates the till
+ * asking, and stays Unassigned rather than being assumed to be cash.
  */
 export function ordersByPayment(orders: Order[]): { name: string; qty: number; value: number }[] {
   const totals = new Map<string, { name: string; qty: number; value: number }>()
   for (const order of orders) {
-    const name = paymentLabel(order.paymentMethod) || 'Unassigned'
+    const name = paymentLabel(order.paymentMethod) || (order.walkin ? 'Unassigned' : 'Charged to department')
     const row = totals.get(name) ?? { name, qty: 0, value: 0 }
     row.qty += 1
     row.value = Math.round((row.value + order.total) * 100) / 100

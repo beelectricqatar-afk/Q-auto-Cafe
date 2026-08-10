@@ -290,3 +290,51 @@ describe('choosing the cafe', () => {
     expect(onPlaced).toHaveBeenCalled()
   })
 })
+
+describe('who gets asked how they paid', () => {
+  const orders = () => repo.all<{ walkin?: boolean; paymentMethod?: string; branch?: string }>('orders')
+
+  /** Attributes the ticket to a staff member, which makes it a department order. */
+  const pickStaff = async () => {
+    await user.click(screen.getByRole('button', { name: 'Select source' }))
+    await user.type(screen.getByPlaceholderText(/Type a name or extension/i), 'Aisha')
+    await user.click(await screen.findByRole('button', { name: /Aisha/ }))
+  }
+
+  it('asks a walk-in how they paid', async () => {
+    await user.click(tile(/Espresso/))
+    await user.click(screen.getByRole('button', { name: 'Walk-in' }))
+    await user.click(screen.getByRole('button', { name: 'Place Order' }))
+    await user.click(within(cafeDialog()).getByRole('button', { name: 'Audi' }))
+    expect(payDialog()).toBeInTheDocument()
+  })
+
+  it('asks when no source was chosen at all, since that is a walk-in too', async () => {
+    await user.click(tile(/Espresso/))
+    await user.click(screen.getByRole('button', { name: 'Place Order' }))
+    await user.click(within(cafeDialog()).getByRole('button', { name: 'Audi' }))
+    expect(payDialog()).toBeInTheDocument()
+  })
+
+  it('does not ask a department order — it is charged back, not paid at the till', async () => {
+    await pickStaff()
+    await user.click(tile(/Espresso/))
+    await user.click(screen.getByRole('button', { name: 'Place Order' }))
+    await user.click(within(cafeDialog()).getByRole('button', { name: 'Audi' }))
+
+    expect(screen.queryByRole('dialog', { name: /How is this/ })).not.toBeInTheDocument()
+    const [order] = await orders()
+    expect(order).toMatchObject({ walkin: false, branch: 'audi' })
+    expect(order.paymentMethod).toBeUndefined()
+  })
+
+  it('places the department order straight from the cafe choice', async () => {
+    await pickStaff()
+    await user.click(tile(/Espresso/))
+    await user.click(screen.getByRole('button', { name: 'Place Order' }))
+    await user.click(within(cafeDialog()).getByRole('button', { name: 'Volkswagen' }))
+    expect(await orders()).toHaveLength(1)
+    expect(ticket().getByText('No items yet')).toBeInTheDocument()
+    expect(onPlaced).toHaveBeenCalled()
+  })
+})
