@@ -3,7 +3,8 @@ import type { Data } from '../../app/useData'
 import { repo } from '../../db/repo'
 import type { Order } from '../../db/schema'
 import { formatQar } from '../../domain/money'
-import { periodRange, PERIOD_LABELS, type PeriodKey } from '../../domain/dateRanges'
+import { defaultSelection, selectionRange, type RangeSelection } from '../../domain/rangeSelection'
+import { RangePicker } from '../../components/RangePicker'
 import { ordersInRange, revenue, avgOrderValue, walkinCount, topItems, topDepartments, peakHour } from '../../domain/analytics'
 import { Card } from '../../components/Card'
 import { MetricCard } from '../../components/MetricCard'
@@ -11,10 +12,10 @@ import { OrdersIcon, DollarIcon, DirectoryIcon, ClockIcon, InventoryIcon } from 
 
 export function Dashboard({ data }: { data: Data }) {
   const [orders, setOrders] = useState<Order[]>([])
-  const [period, setPeriod] = useState<PeriodKey>('today')
+  const [selection, setSelection] = useState<RangeSelection>(() => defaultSelection('today'))
   useEffect(() => { repo.all('orders').then(setOrders) }, [])
 
-  const range = useMemo(() => periodRange(period), [period])
+  const range = useMemo(() => selectionRange(selection), [selection])
   const inRange = useMemo(() => ordersInRange(orders, range.from, range.to), [orders, range])
   const walkinRevenue = useMemo(() => revenue(inRange.filter(o => o.walkin)), [inRange])
   const deptRevenue = useMemo(() => revenue(inRange.filter(o => !o.walkin)), [inRange])
@@ -26,14 +27,7 @@ export function Dashboard({ data }: { data: Data }) {
     <div style={{ display: 'grid', gap: 16 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
         <h2 style={{ margin: 0 }}>Dashboard</h2>
-        <div style={{ display: 'flex', gap: 6 }}>
-          {(Object.keys(PERIOD_LABELS) as PeriodKey[]).map(k => (
-            <button key={k} onClick={() => setPeriod(k)} style={{ padding: '8px 14px', borderRadius: 8, fontWeight: 700,
-              border: period === k ? 'none' : '1px solid #e5e5e5', background: period === k ? '#1A1A1A' : '#fff', color: period === k ? '#fff' : 'var(--ink)' }}>
-              {PERIOD_LABELS[k]}
-            </button>
-          ))}
-        </div>
+        <RangePicker value={selection} onChange={setSelection} />
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gridAutoRows: 'auto', gap: 16 }}>

@@ -5,7 +5,7 @@ import type { DeletionLog, FinanceExpense, FinanceReceipt, FinanceWastage, Order
 import { useToast } from '../../components/Toast'
 import { exportXlsx } from '../../domain/xlsx'
 import { formatQar } from '../../domain/money'
-import { buildFinanceSummary, currentMonthKey, dayRange, EXPENSE_CATEGORIES, EXPENSE_CATEGORY_LABELS, makeExpense, makeWastage, monthRange, todayKey } from '../../domain/finance'
+import { buildFinanceSummary, currentMonthKey, dayRange, EXPENSE_CATEGORIES, EXPENSE_CATEGORY_LABELS, makeExpense, makeWastage, monthRange, profitSplit, todayKey } from '../../domain/finance'
 import { exportBusinessSummaryPdf, exportDetailedSales, exportExpenses, exportExpenseTemplate, importExpenseWorkbook } from '../../domain/financeExports'
 import { Card } from '../../components/Card'
 import { MetricCard } from '../../components/MetricCard'
@@ -107,6 +107,15 @@ export function FinanceScreen({ data }: { data: Data }) {
     menuItems: data.menuItems,
     ingredients: data.ingredients,
   }), [range, orders, expenses, wastages, deletionLogs, data])
+
+  // Net sales split by order; COGS is apportioned by each stream's share of them.
+  const profitBreakdown = useMemo(() => {
+    const split = profitSplit(summary)
+    return [
+      { label: 'Departments', value: formatQar(split.departments) },
+      { label: 'Walk-in', value: formatQar(split.walkin) },
+    ]
+  }, [summary])
 
   const saveExpense = async () => {
     const amount = Number(form.amountQar)
@@ -266,8 +275,16 @@ export function FinanceScreen({ data }: { data: Data }) {
         <MetricCard valueSize={22} icon={WalletIcon} label="Expenses" value={formatQar(summary.expenseTotal)} />
         <MetricCard valueSize={22} icon={DollarIcon} label="Net sales" value={formatQar(summary.netSales)} tone="good" />
         <MetricCard valueSize={22} icon={InventoryIcon} label="COGS" value={formatQar(summary.cogs)} />
-        <MetricCard valueSize={22} icon={TrendUpIcon} label="Gross profit" value={formatQar(summary.grossProfit)} tone={summary.grossProfit >= 0 ? 'good' : 'bad'} />
-        <MetricCard valueSize={22} icon={TrendUpIcon} label="Net profit" value={formatQar(summary.netProfit)} tone={summary.netProfit >= 0 ? 'good' : 'bad'} />
+        <MetricCard
+          valueSize={22} icon={TrendUpIcon} label="Gross profit"
+          value={formatQar(summary.grossProfit)} tone={summary.grossProfit >= 0 ? 'good' : 'bad'}
+          breakdown={profitBreakdown}
+        />
+        <MetricCard
+          valueSize={22} icon={TrendUpIcon} label="Net profit"
+          value={formatQar(summary.netProfit)} tone={summary.netProfit >= 0 ? 'good' : 'bad'}
+          breakdown={profitBreakdown}
+        />
       </div>
 
       {/* Without any costs logged, profit just equals sales — say so rather than

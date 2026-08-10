@@ -219,6 +219,25 @@ export function buildFinanceSummary(input: {
   }
 }
 
+/**
+ * Profit split between department trade and walk-ins.
+ *
+ * Net sales divide cleanly — every order is one or the other. COGS does not:
+ * expenses and wastage are whole-business costs with no per-order attribution,
+ * so each stream carries a share proportional to the sales it brought in. The
+ * two figures therefore always add back up to the total profit.
+ */
+export function profitSplit(summary: Pick<FinanceSummary, 'orders' | 'netSales' | 'cogs'>): { departments: number; walkin: number } {
+  const walkinSales = round2(summary.orders.filter(o => o.walkin).reduce((sum, o) => sum + o.total, 0))
+  const deptSales = round2(summary.netSales - walkinSales)
+  if (!summary.netSales) return { departments: 0, walkin: 0 }
+  const walkinCogs = round2(summary.cogs * (walkinSales / summary.netSales))
+  return {
+    departments: round2(deptSales - (summary.cogs - walkinCogs)),
+    walkin: round2(walkinSales - walkinCogs),
+  }
+}
+
 export function makeExpense(input: Omit<FinanceExpense, 'id' | 'timestamp' | 'source' | 'createdAt' | 'updatedAt'> & { id?: string; source?: FinanceExpense['source'] }): FinanceExpense {
   const date = input.date || new Date().toISOString().slice(0, 10)
   const now = Date.now()

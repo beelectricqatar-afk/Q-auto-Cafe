@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildFinanceSummary, dayRange, makeExpense, makeWastage, monthRange, orderGross, todayKey } from './finance'
+import { buildFinanceSummary, dayRange, makeExpense, makeWastage, monthRange, orderGross, profitSplit, todayKey } from './finance'
 import type { Category, DeletionLog, Department, Ingredient, MenuItem, Order, Staff } from '../db/schema'
 
 const range = monthRange('2026-03')
@@ -104,4 +104,43 @@ describe('finance calculations', () => {
     expect(second.netSales).toBe(0)
   })
 
+})
+
+describe('profitSplit', () => {
+  const split = (orders: Order[], netSales: number, cogs: number) => profitSplit({ orders, netSales, cogs })
+
+  const dept = (id: string, total: number): Order =>
+    ({ id, timestamp: 1, staffId: 's1', departmentId: 'd1', total, lines: [] })
+  const walkin = (id: string, total: number): Order =>
+    ({ id, timestamp: 1, staffId: null, departmentId: null, walkin: true, total, lines: [] })
+
+  it('splits net sales by stream when there are no costs', () => {
+    expect(split([dept('a', 70), walkin('b', 30)], 100, 0)).toEqual({ departments: 70, walkin: 30 })
+  })
+
+  it('shares COGS in proportion to the sales each stream brought in', () => {
+    // 70/30 split of sales, so 70/30 of the 50 cost: 35 and 15.
+    expect(split([dept('a', 70), walkin('b', 30)], 100, 50)).toEqual({ departments: 35, walkin: 15 })
+  })
+
+  it('always adds back up to the total profit', () => {
+    for (const [d, w, cogs] of [[70, 30, 50], [1, 2, 3], [123.45, 67.89, 40.2], [0, 100, 25]]) {
+      const net = Math.round((d + w) * 100) / 100
+      const s = split([dept('a', d), walkin('b', w)], net, cogs)
+      expect(Math.round((s.departments + s.walkin) * 100) / 100).toBe(Math.round((net - cogs) * 100) / 100)
+    }
+  })
+
+  it('puts the whole loss on one stream when only it traded', () => {
+    expect(split([dept('a', 100)], 100, 40)).toEqual({ departments: 60, walkin: 0 })
+    expect(split([walkin('a', 100)], 100, 40)).toEqual({ departments: 0, walkin: 60 })
+  })
+
+  it('goes negative when costs exceed sales', () => {
+    expect(split([dept('a', 50), walkin('b', 50)], 100, 200)).toEqual({ departments: -50, walkin: -50 })
+  })
+
+  it('is zero for a period with no sales', () => {
+    expect(split([], 0, 80)).toEqual({ departments: 0, walkin: 0 })
+  })
 })
