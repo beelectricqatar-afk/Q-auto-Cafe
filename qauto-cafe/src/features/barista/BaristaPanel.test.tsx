@@ -54,9 +54,15 @@ beforeEach(async () => {
 const tile = (name: RegExp) => screen.getByRole('button', { name })
 const ticket = () => within(screen.getByRole('region', { name: 'Ticket' }))
 const milkDialog = () => screen.getByRole('dialog', { name: /^Milk for/ })
+const cafeDialog = () => screen.getByRole('dialog', { name: /Which cafe/ })
+/** Place Order now asks which cafe before the order is written. */
+const chooseCafe = async (name: 'Audi' | 'Volkswagen' = 'Audi') => {
+  await user.click(screen.getByRole('button', { name: 'Place Order' }))
+  await user.click(within(cafeDialog()).getByRole('button', { name }))
+}
 const placeWalkIn = async () => {
   await user.click(screen.getByRole('button', { name: 'Walk-in' }))
-  await user.click(screen.getByRole('button', { name: 'Place Order' }))
+  await chooseCafe()
 }
 
 describe('items that do not use milk', () => {
@@ -181,7 +187,7 @@ describe('the Place Order button', () => {
 
   it('places without a source, recorded as a walk-in', async () => {
     await user.click(tile(/Espresso/))
-    await user.click(placeButton())
+    await chooseCafe()
     const [order] = await repo.all<{ walkin?: boolean; staffId: string | null; departmentId: string | null; customerName?: string }>('orders')
     expect(order).toMatchObject({ walkin: true, staffId: null, departmentId: null })
     expect(order.customerName).toBeUndefined()
@@ -190,7 +196,7 @@ describe('the Place Order button', () => {
   it('still attributes the order when a source was chosen', async () => {
     await user.click(tile(/Espresso/))
     await user.click(screen.getByRole('button', { name: 'Walk-in' }))
-    await user.click(placeButton())
+    await chooseCafe()
     expect((await repo.all<{ walkin?: boolean }>('orders'))[0].walkin).toBe(true)
   })
 
@@ -199,5 +205,51 @@ describe('the Place Order button', () => {
     await user.click(screen.getByRole('button', { name: 'Clear' }))
     expect(placeButton()).toBeDisabled()
     expect(placeButton()).toHaveStyle({ background: '#3A3A3A' })
+  })
+})
+
+describe('choosing the cafe', () => {
+  const orders = () => repo.all<{ branch?: string; total: number }>('orders')
+
+  it('asks which cafe instead of placing straight away', async () => {
+    await user.click(tile(/Espresso/))
+    await user.click(screen.getByRole('button', { name: 'Place Order' }))
+    expect(cafeDialog()).toBeInTheDocument()
+    expect(await orders()).toHaveLength(0) // nothing written yet
+  })
+
+  it('offers both cafes', async () => {
+    await user.click(tile(/Espresso/))
+    await user.click(screen.getByRole('button', { name: 'Place Order' }))
+    const d = within(cafeDialog())
+    expect(d.getByRole('button', { name: 'Audi' })).toBeInTheDocument()
+    expect(d.getByRole('button', { name: 'Volkswagen' })).toBeInTheDocument()
+  })
+
+  it('tags the order with Audi', async () => {
+    await user.click(tile(/Espresso/))
+    await chooseCafe('Audi')
+    expect((await orders())[0].branch).toBe('audi')
+  })
+
+  it('tags the order with Volkswagen', async () => {
+    await user.click(tile(/Espresso/))
+    await chooseCafe('Volkswagen')
+    expect((await orders())[0].branch).toBe('volkswagen')
+  })
+
+  it('places nothing if the chooser is dismissed', async () => {
+    await user.click(tile(/Espresso/))
+    await user.click(screen.getByRole('button', { name: 'Place Order' }))
+    await user.click(screen.getByRole('button', { name: 'Close' }))
+    expect(await orders()).toHaveLength(0)
+    expect(ticket().getByText('Espresso')).toBeInTheDocument() // ticket intact
+  })
+
+  it('clears the ticket once a cafe is chosen', async () => {
+    await user.click(tile(/Espresso/))
+    await chooseCafe()
+    expect(ticket().getByText('No items yet')).toBeInTheDocument()
+    expect(onPlaced).toHaveBeenCalled()
   })
 })

@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import type { Data } from '../../app/useData'
-import type { Ingredient, MenuItem } from '../../db/schema'
+import type { Branch, Ingredient, MenuItem } from '../../db/schema'
 import { SourcePicker, type Source } from './SourcePicker'
 import { MenuGrid } from './MenuGrid'
 import { Ticket } from './Ticket'
@@ -10,6 +10,11 @@ import { useToast } from '../../components/Toast'
 import { Modal } from '../../components/Modal'
 import { recipeFor } from '../../domain/deduction'
 import { milkPair, milkUsed, swapMilk } from '../../domain/milk'
+import { BRANCHES, branchLabel } from '../../domain/branch'
+import audiLogo from '../../assets/brand/audi.jpg'
+import volkswagenLogo from '../../assets/brand/volkswagen.jpg'
+
+const BRANCH_LOGOS: Record<Branch, string> = { audi: audiLogo, volkswagen: volkswagenLogo }
 import { repo } from '../../db/repo'
 
 export function BaristaPanel({ data, onPlaced }: { data: Data; onPlaced: () => void }) {
@@ -18,6 +23,8 @@ export function BaristaPanel({ data, onPlaced }: { data: Data; onPlaced: () => v
   // Only a milk drink asks anything: which of the two milks to pour. `line` is
   // set when changing the milk on something already on the ticket.
   const [pending, setPending] = useState<{ item: MenuItem; line?: TicketLine } | null>(null)
+  // Placing asks which cafe the order is for before it is written.
+  const [choosingBranch, setChoosingBranch] = useState(false)
   const ticket = useTicket()
   const toast = useToast()
   // Items alone are enough to place — the button goes white and live as soon as
@@ -51,7 +58,8 @@ export function BaristaPanel({ data, onPlaced }: { data: Data; onPlaced: () => v
     setPending(null)
   }
 
-  const place = async () => {
+  const place = async (branch: Branch) => {
+    setChoosingBranch(false)
     await placeOrder({
       staffId: source.staff?.id ?? null,
       departmentId: source.department?.id ?? source.staff?.departmentId ?? null,
@@ -59,6 +67,7 @@ export function BaristaPanel({ data, onPlaced }: { data: Data; onPlaced: () => v
       walkin: source.walkin,
       customerName: source.walkinName,
       discountPct: discount ? 15 : 0,
+      branch,
     })
     const ings = await repo.all<Ingredient>('ingredients')
     const low = ings.filter(i => i.stockQty <= i.lowStockThreshold)
@@ -82,13 +91,36 @@ export function BaristaPanel({ data, onPlaced }: { data: Data; onPlaced: () => v
           lactoseFreeId={milk?.lactoseFree.id}
           onChangeMilk={changeMilk}
           onClear={ticket.clear}
-          onPlace={place}
+          onPlace={() => setChoosingBranch(true)}
           canPlace={canPlace}
           discount={discount}
           onToggleDiscount={() => setDiscount(d => !d)}
         />
       </div>
       <MenuGrid data={data} onPick={pick} />
+
+      <Modal open={choosingBranch} title="Which cafe is this order for?" onClose={() => setChoosingBranch(false)}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          {BRANCHES.map(b => (
+            <button
+              key={b}
+              onClick={() => place(b)}
+              style={{
+                aspectRatio: '1 / 1', display: 'grid', alignContent: 'center', justifyItems: 'center', gap: 12,
+                borderRadius: 16, padding: 16, cursor: 'pointer', textAlign: 'center',
+                border: 'none', background: '#1A1A1A', color: '#fff',
+              }}
+            >
+              <img
+                src={BRANCH_LOGOS[b]}
+                alt=""
+                style={{ width: '58%', maxHeight: '52%', objectFit: 'contain' }}
+              />
+              <span style={{ fontSize: 20, fontWeight: 800 }}>{branchLabel(b)}</span>
+            </button>
+          ))}
+        </div>
+      </Modal>
 
       <Modal open={!!pending} title={`Milk for ${pending?.item.name ?? ''}`} onClose={() => setPending(null)}>
         {milk && (

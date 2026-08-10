@@ -8,6 +8,7 @@ import { useToast } from '../../components/Toast'
 import { exportXlsx } from '../../domain/xlsx'
 import { formatQar } from '../../domain/money'
 import { deleteOrder, type DeleteDisposition } from './deleteOrder'
+import { branchLabel } from '../../domain/branch'
 
 const DELETE_PASSWORD = 'admin'
 
@@ -45,6 +46,7 @@ export function OrdersLogScreen({ data, refresh }: { data: Data; refresh: () => 
 
   const cols: Column<Order>[] = [
     { key: 'time', header: 'Time', render: o => new Date(o.timestamp).toLocaleString() },
+    { key: 'branch', header: 'Cafe', render: o => branchLabel(o.branch) || '—' },
     { key: 'staff', header: 'Person', render: o => staffName(o) },
     { key: 'dept', header: 'Department', render: o => deptName(o) },
     { key: 'items', header: 'Items', render: o => itemsText(o) },
@@ -61,10 +63,10 @@ export function OrdersLogScreen({ data, refresh }: { data: Data; refresh: () => 
       { header: 'Total (QAR)', key: 'total', width: 14, money: true },
     ],
     filtered.map(o => ({
-      time: new Date(o.timestamp).toLocaleString(), person: staffName(o), department: deptName(o),
+      time: new Date(o.timestamp).toLocaleString(), cafe: branchLabel(o.branch), person: staffName(o), department: deptName(o),
       items: itemsText(o), total: o.total,
     })),
-    { totals: { time: 'TOTAL', person: '', department: '', items: `${filtered.length} order(s)`, total: filtered.reduce((s, o) => s + o.total, 0) } },
+    { totals: { time: 'TOTAL', cafe: '', person: '', department: '', items: `${filtered.length} order(s)`, total: filtered.reduce((s, o) => s + o.total, 0) } },
   )
   return (
     <div style={{ display: 'grid', gap: 12 }}>

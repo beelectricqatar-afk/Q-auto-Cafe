@@ -1,9 +1,9 @@
 import { getDb } from '../../db/database'
 import { applyDeduction, computeDeductions, subDivision } from '../../domain/deduction'
 import { ticketTotal, applyDiscount } from '../../domain/money'
-import { OUTBOX_STORE, type Order, type OrderLine, type MenuItem, type Ingredient, type InventoryAdjustment, type Outbox } from '../../db/schema'
+import { OUTBOX_STORE, type Branch, type Order, type OrderLine, type MenuItem, type Ingredient, type InventoryAdjustment, type Outbox } from '../../db/schema'
 
-export interface PlaceOrderInput { staffId: string | null; departmentId: string | null; lines: OrderLine[]; note?: string; walkin?: boolean; customerName?: string; discountPct?: number }
+export interface PlaceOrderInput { staffId: string | null; departmentId: string | null; lines: OrderLine[]; note?: string; walkin?: boolean; customerName?: string; discountPct?: number; branch?: Branch }
 
 export async function placeOrder(input: PlaceOrderInput): Promise<{ order: Order }> {
   const db = await getDb()
@@ -16,6 +16,7 @@ export async function placeOrder(input: PlaceOrderInput): Promise<{ order: Order
     walkin: input.walkin || (!input.staffId && !input.departmentId),
     customerName: input.customerName?.trim() || undefined,
     discountPct: input.discountPct || undefined,
+    branch: input.branch,
   }
   const tx = db.transaction(['orders', 'ingredients', 'inventoryAdjustments', OUTBOX_STORE], 'readwrite')
   const out = tx.objectStore(OUTBOX_STORE)

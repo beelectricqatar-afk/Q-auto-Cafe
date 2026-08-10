@@ -2,6 +2,7 @@ import { downloadBlob } from './csv'
 import { exportXlsx, type XlsxColumn } from './xlsx'
 import { buildPdf, fitText, PAGE_W, type Draw, type RGB } from './pdf'
 import { applyDiscount } from './money'
+import { branchLabel, ordersByBranch } from './branch'
 import { EXPENSE_CATEGORIES, makeExpense, orderGross, type FinanceSummary } from './finance'
 import type { Data } from '../app/useData'
 import type { FinanceExpense, Order } from '../db/schema'
@@ -62,6 +63,7 @@ export const STAFF_DISCOUNT_PCT = 15
 export type DetailedSalesRow = {
   orderNo: number
   orderTime: string
+  cafe: string
   orderType: string
   orderTakenBy: string
   customerName: string
@@ -82,6 +84,7 @@ export function detailedSalesRows(orders: Order[], data: Data): DetailedSalesRow
       return {
         orderNo: index + 1,
         orderTime: new Date(order.timestamp).toISOString().slice(0, 16).replace('T', ' '),
+        cafe: branchLabel(order.branch),
         orderType: order.walkin ? 'Walk-In' : 'Call Center',
         orderTakenBy: staffName(data, order.staffId) || 'Q Cafe POS',
         customerName: order.walkin ? (order.customerName || 'Walk In') : staffName(data, order.staffId),
@@ -104,6 +107,7 @@ export function exportDetailedSales(orders: Order[], data: Data, rangeKey: strin
   return exportXlsx(`q-cafe-sales-${rangeKey}.xlsx`, 'Total Orders', [
     { header: 'Order No', key: 'orderNo', width: 12 },
     { header: 'Order Time', key: 'orderTime', width: 20 },
+    { header: 'Cafe', key: 'cafe', width: 14 },
     { header: 'Order Type', key: 'orderType', width: 18 },
     { header: 'Order Taken By', key: 'orderTakenBy', width: 24 },
     { header: 'Customer Name', key: 'customerName', width: 28 },
@@ -334,6 +338,22 @@ function buildSummarySections(summary: FinanceSummary): PdfSection[] {
       { label: 'Total', cols: ['', amount(summary.voids.value)], bold: true, rule: 'solid' },
     ],
   })
+
+  // Only worth a section once orders actually carry a branch.
+  const byBranch = ordersByBranch(summary.orders)
+  if (byBranch.some(b => b.name !== 'Unassigned')) {
+    sections.push({
+      title: 'Sales by Cafe',
+      headers: ['Orders', '%', 'Value'],
+      rows: [
+        ...byBranch.map(b => ({
+          label: b.name,
+          cols: [String(b.orderCount), pct(summary.orders.length ? (b.orderCount / summary.orders.length) * 100 : 0), amount(b.value)],
+        })),
+        { label: 'Total', cols: [String(summary.orders.length), '', amount(summary.netSales)], bold: true, rule: 'solid' as const },
+      ],
+    })
+  }
 
   sections.push({
     title: 'Sales by Staff',

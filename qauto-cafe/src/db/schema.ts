@@ -30,7 +30,10 @@ export interface MenuItem { id: string; name: string; categoryId: string; price:
 // barista tailors a drink for one customer. Absent means "use the menu item's
 // recipe", so later edits to the menu still apply to untouched lines.
 export interface OrderLine { itemId: string; name: string; qty: number; unitPrice: number; recipe?: RecipeLine[] }
-export interface Order { id: string; timestamp: number; staffId: string | null; departmentId: string | null; lines: OrderLine[]; total: number; note?: string; walkin?: boolean; customerName?: string; discountPct?: number }
+/** Which cafe took the order. Absent on anything placed before branches existed. */
+export type Branch = 'audi' | 'volkswagen'
+
+export interface Order { id: string; timestamp: number; staffId: string | null; departmentId: string | null; lines: OrderLine[]; total: number; note?: string; walkin?: boolean; customerName?: string; discountPct?: number; branch?: Branch }
 // `return` is stock put back when an order is deleted — distinct from `restock`,
 // which is new stock arriving.
 export type AdjustmentReason = 'order' | 'restock' | 'manual' | 'stocktake' | 'return'
