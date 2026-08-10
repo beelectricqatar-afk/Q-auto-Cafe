@@ -5,6 +5,8 @@ import type { Order } from '../../db/schema'
 import { formatQar } from '../../domain/money'
 import { defaultSelection, selectionRange, type RangeSelection } from '../../domain/rangeSelection'
 import { RangePicker } from '../../components/RangePicker'
+import { RevenueChart } from '../../components/RevenueChart'
+import { revenueSeries } from '../../domain/revenueSeries'
 import { ordersInRange, revenue, avgOrderValue, walkinCount, topItems, topDepartments, peakHour } from '../../domain/analytics'
 import { Card } from '../../components/Card'
 import { MetricCard } from '../../components/MetricCard'
@@ -19,6 +21,7 @@ export function Dashboard({ data }: { data: Data }) {
   const inRange = useMemo(() => ordersInRange(orders, range.from, range.to), [orders, range])
   const walkinRevenue = useMemo(() => revenue(inRange.filter(o => o.walkin)), [inRange])
   const deptRevenue = useMemo(() => revenue(inRange.filter(o => !o.walkin)), [inRange])
+  const series = useMemo(() => revenueSeries(orders, range).points, [orders, range])
   const items = useMemo(() => topItems(inRange), [inRange])
   const depts = useMemo(() => topDepartments(inRange, data.departments), [inRange, data.departments])
   const low = data.ingredients.filter(i => i.stockQty <= i.lowStockThreshold)
@@ -52,7 +55,11 @@ export function Dashboard({ data }: { data: Data }) {
         <MetricCard style={{ gridColumn: '1', gridRow: '2' }} icon={InventoryIcon} label="Low-stock items" value={String(low.length)} tone={low.length > 0 ? 'bad' : 'normal'} />
         <MetricCard style={{ gridColumn: '2 / span 2', gridRow: '2' }} icon={ClockIcon} label="Peak hour" value={peakHour(inRange) ?? '—'} />
 
-        <div style={{ gridColumn: '1 / span 2', gridRow: '3' }}>
+        <div style={{ gridColumn: '1 / span 4', gridRow: '3' }}>
+          <RevenueChart points={series} rangeLabel={range.label} />
+        </div>
+
+        <div style={{ gridColumn: '1 / span 2', gridRow: '4' }}>
           <Card hoverable title={`Top items · ${range.label.toLowerCase()}`}>
             <div style={{ display: 'grid', gap: 6 }}>
               {items.length === 0 && <span style={{ color: 'var(--muted)' }}>No orders yet</span>}
@@ -65,7 +72,7 @@ export function Dashboard({ data }: { data: Data }) {
             </div>
           </Card>
         </div>
-        <div style={{ gridColumn: '3 / span 2', gridRow: '3' }}>
+        <div style={{ gridColumn: '3 / span 2', gridRow: '4' }}>
           <Card hoverable title={`Top departments · ${range.label.toLowerCase()}`}>
             <div style={{ display: 'grid', gap: 6 }}>
               {depts.length === 0 && <span style={{ color: 'var(--muted)' }}>No orders yet</span>}
