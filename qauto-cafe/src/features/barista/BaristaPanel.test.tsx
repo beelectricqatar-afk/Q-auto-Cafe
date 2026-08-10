@@ -164,3 +164,40 @@ describe('the ticket line', () => {
     expect((await repo.get('ingredients', 'fresh'))!.stockQty).toBe(1000)
   })
 })
+
+describe('the Place Order button', () => {
+  const placeButton = () => screen.getByRole('button', { name: 'Place Order' })
+
+  it('is dark and inert while the ticket is empty', () => {
+    expect(placeButton()).toBeDisabled()
+    expect(placeButton()).toHaveStyle({ background: '#3A3A3A' })
+  })
+
+  it('turns white with black text as soon as an item is added', async () => {
+    await user.click(tile(/Espresso/))
+    expect(placeButton()).toHaveStyle({ background: '#fff', color: '#1A1A1A' })
+    expect(placeButton()).toBeEnabled()
+  })
+
+  it('places without a source, recorded as a walk-in', async () => {
+    await user.click(tile(/Espresso/))
+    await user.click(placeButton())
+    const [order] = await repo.all<{ walkin?: boolean; staffId: string | null; departmentId: string | null; customerName?: string }>('orders')
+    expect(order).toMatchObject({ walkin: true, staffId: null, departmentId: null })
+    expect(order.customerName).toBeUndefined()
+  })
+
+  it('still attributes the order when a source was chosen', async () => {
+    await user.click(tile(/Espresso/))
+    await user.click(screen.getByRole('button', { name: 'Walk-in' }))
+    await user.click(placeButton())
+    expect((await repo.all<{ walkin?: boolean }>('orders'))[0].walkin).toBe(true)
+  })
+
+  it('goes back to dark once the ticket is cleared', async () => {
+    await user.click(tile(/Espresso/))
+    await user.click(screen.getByRole('button', { name: 'Clear' }))
+    expect(placeButton()).toBeDisabled()
+    expect(placeButton()).toHaveStyle({ background: '#3A3A3A' })
+  })
+})

@@ -20,7 +20,10 @@ export function BaristaPanel({ data, onPlaced }: { data: Data; onPlaced: () => v
   const [pending, setPending] = useState<{ item: MenuItem; line?: TicketLine } | null>(null)
   const ticket = useTicket()
   const toast = useToast()
-  const canPlace = ticket.lines.length > 0 && (!!source.staff || !!source.department || !!source.walkin)
+  // Items alone are enough to place — the button goes white and live as soon as
+  // something is on the ticket. With no source chosen, placeOrder records the
+  // order as a walk-in with no name.
+  const canPlace = ticket.lines.length > 0
 
   const milk = useMemo(() => milkPair(data.ingredients), [data.ingredients])
   const milkOf = (line: TicketLine) => milk ? milkUsed(recipeFor(line, data.menuItems), milk) : null
