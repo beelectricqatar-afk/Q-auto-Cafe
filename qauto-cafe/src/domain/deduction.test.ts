@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { applyDeduction, computeDeductions, recipeFor, recipeSignature, restoreDeduction, sameRecipe, subDivision, tidyRecipe } from './deduction'
+import { applyDeduction, computeDeductions, recipeFor, recipeSignature, restoreDeduction, sameRecipe, subDivision, subUnitUnset, tidyRecipe } from './deduction'
 import type { Ingredient, MenuItem, OrderLine } from '../db/schema'
 
 const items: MenuItem[] = [
@@ -107,6 +107,50 @@ describe('subDivision', () => {
     // conversion is meaningless — both must read as "not sub-divided".
     expect(subDivision({ ...lemon, subUnitPer: 0 })).toEqual({ unit: 'pcs', per: 1 })
     expect(subDivision({ ...lemon, subUnit: undefined })).toEqual({ unit: 'pcs', per: 1 })
+  })
+})
+
+// Chocolate flakes: counted in pieces, and one whole piece is served per order.
+// The conversion really is 1, which must not be mistaken for an unfilled field.
+const flakes: Ingredient = {
+  id: 'flakes', name: 'Chocolate Flakes', unit: 'pcs', subUnit: 'pc', subUnitPer: 1,
+  stockQty: 40, lowStockThreshold: 12,
+}
+
+describe('a sub-unit conversion of 1', () => {
+  it('is reported as configured, in the sub-unit', () => {
+    expect(subDivision(flakes)).toEqual({ unit: 'pc', per: 1 })
+  })
+
+  it('does not read as a half-filled form', () => {
+    expect(subUnitUnset(flakes)).toBe(false)
+  })
+
+  // The bug this fixes: at 2 per piece, one flake per order took stock down by
+  // a whole piece only every second order.
+  it('takes one whole piece off stock per serving', () => {
+    expect(applyDeduction(flakes, 1)).toEqual({ stockQty: 39, openSubQty: 0 })
+    expect(applyDeduction({ ...flakes, subUnitPer: 2 }, 1)).toEqual({ stockQty: 39, openSubQty: 1 })
+  })
+
+  it('never leaves a part-used piece open', () => {
+    expect(applyDeduction(flakes, 3).openSubQty).toBe(0)
+    expect(restoreDeduction(flakes, 3)).toEqual({ stockQty: 43, openSubQty: 0 })
+  })
+})
+
+describe('subUnitUnset', () => {
+  it('is true for a sub-unit named with no conversion behind it', () => {
+    expect(subUnitUnset({ ...lemon, subUnitPer: 0 })).toBe(true)
+    expect(subUnitUnset({ ...lemon, subUnitPer: undefined })).toBe(true)
+  })
+  it('is false when no sub-unit was named at all', () => {
+    expect(subUnitUnset(beans)).toBe(false)
+    expect(subUnitUnset({ ...lemon, subUnit: undefined })).toBe(false)
+  })
+  it('is false for a real conversion', () => {
+    expect(subUnitUnset(lemon)).toBe(false)
+    expect(subUnitUnset(flakes)).toBe(false)
   })
 })
 

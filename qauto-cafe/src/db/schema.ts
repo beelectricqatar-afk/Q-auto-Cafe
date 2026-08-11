@@ -1,6 +1,10 @@
 // 'L' is capitalised deliberately: a lower-case l reads as a 1 on a receipt or
 // a cramped label. 'bundle' sits alongside 'bag' for herbs bought tied.
-export type Unit = 'ml' | 'L' | 'g' | 'kg' | 'pcs' | 'shot' | 'oz' | 'slices' | 'leaves' | 'bag' | 'bundle'
+//
+// 'pc' is the singular of 'pcs' and exists for the sub-unit slot: stock counted
+// in pcs, served one pc at a time. Reading "1 pc per pcs" on a row is the point
+// — it says a serving is a whole piece, not a share of one.
+export type Unit = 'ml' | 'L' | 'g' | 'kg' | 'pcs' | 'pc' | 'shot' | 'oz' | 'slices' | 'leaves' | 'bag' | 'bottle' | 'bundle'
 export type ExpenseCategory = 'supplies' | 'utilities' | 'maintenance' | 'packaging' | 'petty-cash' | 'salaries' | 'rent' | 'other'
 
 export interface Department { id: string; name: string; mainExtension: string; active: boolean }

@@ -17,6 +17,19 @@ export function subDivision(ing: SubDivisible): { unit: Unit; per: number } {
 }
 
 /**
+ * A sub-unit named with no conversion behind it — a half-filled form that
+ * silently measures recipes in whole units instead.
+ *
+ * This reads the stored conversion rather than `subDivision`'s, because the two
+ * disagree on the case that matters: a deliberate 1 (chocolate flakes counted
+ * in pieces and served a whole piece at a time) is a complete setup, while
+ * `subDivision` reports `per: 1` for that and for a blank field alike.
+ */
+export function subUnitUnset(ing: SubDivisible): boolean {
+  return !!ing.subUnit && !(ing.subUnitPer && ing.subUnitPer > 0)
+}
+
+/**
  * Applies `need` (in the ingredient's recipe unit) to its stock.
  *
  * Without sub-division this is a plain subtraction. With it, stock only moves in

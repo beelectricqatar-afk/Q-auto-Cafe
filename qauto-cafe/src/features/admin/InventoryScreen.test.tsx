@@ -98,3 +98,54 @@ describe('setting the yield as stock arrives', () => {
     expect(await repo.all('inventoryAdjustments')).toHaveLength(0)
   })
 })
+
+// Counted in pieces, served one whole piece at a time — a conversion of 1.
+const flakes: Ingredient = {
+  id: 'flakes', name: 'Chocolate Flakes', unit: 'pcs', stockQty: 40, lowStockThreshold: 12,
+  subUnit: 'pc', subUnitPer: 1,
+}
+
+describe('the units on offer', () => {
+  it('offers pc and bottle for both the unit and the sub-unit', async () => {
+    await show([beans])
+    await user.click(screen.getByRole('button', { name: '+ Add' }))
+    for (const label of ['Unit', 'Sub-unit (optional)']) {
+      const options = [...(screen.getByLabelText(label) as HTMLSelectElement).options].map(o => o.value)
+      expect(options).toContain('pc')
+      expect(options).toContain('bottle')
+      // The plural stays: stock is counted in pcs, a serving is one pc.
+      expect(options).toContain('pcs')
+    }
+  })
+})
+
+describe('a sub-unit conversion of 1', () => {
+  it('is shown as a real setting, not flagged as missing', async () => {
+    await show([flakes])
+    expect(screen.getByText(/1 pc\/pcs/)).toBeInTheDocument()
+    expect(screen.queryByText('SET PC PER PCS')).not.toBeInTheDocument()
+  })
+
+  // Nothing is ever left part-used at 1 per unit, so the count would only confuse.
+  it('leaves the "open" count off the row', async () => {
+    await show([flakes])
+    expect(screen.queryByText(/open/)).not.toBeInTheDocument()
+  })
+
+  it('still nags when a sub-unit was named with no conversion', async () => {
+    await show([{ ...flakes, subUnitPer: 0 }])
+    expect(screen.getByText('SET PC PER PCS')).toBeInTheDocument()
+  })
+
+  it('can be set from the adjust panel', async () => {
+    await show([{ ...flakes, subUnitPer: 2 }])
+    await user.click(screen.getByRole('button', { name: 'Adjust' }))
+    const box = screen.getByLabelText('pc per pcs')
+    await user.clear(box)
+    await user.type(box, '1')
+    await user.click(screen.getByRole('button', { name: 'Apply' }))
+    await waitFor(async () => expect((await stock('flakes')).subUnitPer).toBe(1))
+    // Stock is untouched by a conversion-only edit.
+    expect((await stock('flakes')).stockQty).toBe(40)
+  })
+})

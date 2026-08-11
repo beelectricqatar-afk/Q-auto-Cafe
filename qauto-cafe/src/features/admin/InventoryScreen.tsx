@@ -5,10 +5,10 @@ import type { Ingredient, Unit, InventoryAdjustment } from '../../db/schema'
 import { CrudList } from '../../components/CrudList'
 import { useToast } from '../../components/Toast'
 import { Card } from '../../components/Card'
-import { subDivision } from '../../domain/deduction'
+import { subDivision, subUnitUnset } from '../../domain/deduction'
 
 // Order roughly by how often they are picked, volume then weight then counts.
-const UNITS: Unit[] = ['ml', 'L', 'g', 'kg', 'pcs', 'shot', 'oz', 'slices', 'leaves', 'bag', 'bundle']
+const UNITS: Unit[] = ['ml', 'L', 'g', 'kg', 'pcs', 'pc', 'shot', 'oz', 'slices', 'leaves', 'bag', 'bottle', 'bundle']
 
 export function InventoryScreen({ data, refresh }: { data: Data; refresh: () => Promise<void> }) {
   const toast = useToast()
@@ -62,11 +62,15 @@ export function InventoryScreen({ data, refresh }: { data: Data; refresh: () => 
           const sub = subDivision(i)
           // Naming a sub-unit without a conversion does nothing, so say so
           // rather than silently leaving recipes measured in whole units.
-          const halfSet = !!i.subUnit && sub.per === 1
+          const halfSet = subUnitUnset(i)
+          // A conversion of 1 is a real setting — one whole unit per serving —
+          // so it is shown like any other. It just never leaves a part-used
+          // unit behind, which is why the "open" count goes with per > 1.
+          const divided = !!i.subUnit && !halfSet
           return (
             <span>
               <strong>{i.name}</strong> - {i.stockQty}{i.unit}
-              {sub.per > 1 && <span style={{ color: 'var(--muted)' }}> - {i.openSubQty ?? 0} {sub.unit} open - {sub.per} {sub.unit}/{i.unit}</span>}
+              {divided && <span style={{ color: 'var(--muted)' }}>{sub.per > 1 ? ` - ${i.openSubQty ?? 0} ${sub.unit} open` : ''} - {sub.per} {sub.unit}/{i.unit}</span>}
               {i.unitCostQar != null && <span style={{ color: 'var(--muted)' }}> - {i.unitCostQar} QAR/{i.unit}</span>}
               {' '}
               {halfSet && <span style={{ color: 'var(--danger)', fontWeight: 700 }}>SET {i.subUnit!.toUpperCase()} PER {i.unit.toUpperCase()}</span>}
