@@ -4,7 +4,8 @@ import userEvent from '@testing-library/user-event'
 import { RequestsScreen } from './RequestsScreen'
 import type { RequestsState } from './useRequests'
 import type { Data } from '../../app/useData'
-import type { Request } from '../../db/schema'
+import type { FinanceExpense, Request } from '../../db/schema'
+import { repo } from '../../db/repo'
 
 // Keep the screen offline: no cloud reads, no toasts about connectivity.
 vi.mock('../../sync/config', () => ({ isConfigured: () => false }))
@@ -35,7 +36,8 @@ const state = (requests: Request[] = []): RequestsState => ({
   reload: vi.fn().mockResolvedValue(undefined),
 })
 
-beforeEach(() => {
+beforeEach(async () => {
+  await repo.clearAll()
   user = userEvent.setup()
   render(<RequestsScreen data={data} state={state()} />)
 })
@@ -166,5 +168,122 @@ describe('opening a request', () => {
     await user.click(screen.getByTitle('Open this request'))
     await user.click(screen.getByRole('button', { name: 'Close' }))
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+})
+
+describe('expenses on the requests page', () => {
+  it('shows the expense form beside the request form, with its list under it', async () => {
+    expect(screen.getByText('Send a request to the admin')).toBeInTheDocument()
+    expect(screen.getByText('Add expense')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Save expense' })).toBeInTheDocument()
+    expect(await screen.findByText(/^Expenses \(/)).toBeInTheDocument()
+  })
+})
+
+// The real requests are grouped under cafe headings, which is where the branch
+// is written — so the fixture keeps that shape.
+const grouped: Request = {
+  id: 'r3', timestamp: Date.UTC(2026, 7, 6, 7, 0),
+  from: 'Patrick', done: false,
+  message: 'Audi Cafe\n\nFresh Milk   4 ltrs\n\nLemon 10pcs\n\nVw Cafe\n\nMint Leaves  2 Bundles\n\nFor Drink Testing\n\n12 bottles of sparkling water',
+}
+
+// Scoped to the dialog: the collapsed row lists the same item text, so an
+// unscoped query matches the row button that opens the request as well.
+const openItem = async (label: string | RegExp) => {
+  await user.click(screen.getByTitle('Open this request'))
+  const dialog = within(screen.getByRole('dialog', { name: 'Request' }))
+  await user.click(dialog.getByRole('button', { name: label }))
+}
+const field = (placeholder: string) => screen.getByPlaceholderText(placeholder) as HTMLInputElement
+
+describe('raising an expense from a requested item', () => {
+  it('fills the description with the quantity, the name and the cafe', async () => {
+    renderWith([grouped])
+    await openItem(/Fresh Milk 4 ltrs/)
+    expect(field('Description').value).toBe('Fresh Milk 4 ltrs - Audi')
+  })
+
+  it('takes the cafe from the heading the item sits under', async () => {
+    renderWith([grouped])
+    await openItem(/Mint Leaves 2 Bundles/)
+    expect(field('Description').value).toBe('Mint Leaves 2 Bundles - Volkswagen')
+  })
+
+  it('leaves the cafe out when the request never named one', async () => {
+    renderWith([grouped])
+    await openItem(/12 bottles of sparkling water/)
+    expect(field('Description').value).toBe('12 bottles of sparkling water')
+  })
+
+  it('books it as supplies, dated today', async () => {
+    renderWith([grouped])
+    await openItem(/Lemon 10pcs/)
+    expect((screen.getByLabelText('Category') as HTMLSelectElement).value).toBe('supplies')
+    expect((screen.getByLabelText('Expense date') as HTMLInputElement).value).toBe(new Date().toISOString().slice(0, 10))
+  })
+
+  // A request says what is needed, never what it cost or who sold it.
+  it('leaves what the request cannot know for the admin to fill in', async () => {
+    renderWith([grouped])
+    await openItem(/Lemon 10pcs/)
+    expect(field('Amount QAR').value).toBe('')
+    expect(field('Vendor').value).toBe('')
+    expect(field('Reference').value).toBe('')
+  })
+
+  it('replaces a half-typed expense rather than merging into it', async () => {
+    renderWith([grouped])
+    await user.type(field('Vendor'), 'Someone else')
+    await user.type(field('Amount QAR'), '999')
+    await openItem(/Lemon 10pcs/)
+    expect(field('Vendor').value).toBe('')
+    expect(field('Amount QAR').value).toBe('')
+    expect(field('Description').value).toBe('Lemon 10pcs - Audi')
+  })
+
+  // The form it fills sits behind the dialog, so the dialog gets out of the way.
+  it('closes the request popup so the filled form is visible', async () => {
+    renderWith([grouped])
+    await openItem(/Lemon 10pcs/)
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
+  it('does not offer a cafe heading as something to buy', async () => {
+    renderWith([grouped])
+    await user.click(screen.getByTitle('Open this request'))
+    const dialog = within(screen.getByRole('dialog', { name: 'Request' }))
+    expect(dialog.getByText('Audi Cafe')).toBeInTheDocument()
+    expect(dialog.queryByRole('button', { name: /Audi Cafe/ })).not.toBeInTheDocument()
+  })
+
+  it('saves the expense once the admin adds the amount', async () => {
+    renderWith([grouped])
+    await openItem(/Lemon 10pcs/)
+    await user.type(field('Amount QAR'), '60')
+    await user.click(screen.getByRole('button', { name: 'Save expense' }))
+
+    await screen.findByText(/Expenses \(1\)/)
+    const saved = await repo.all<FinanceExpense>('financeExpenses')
+    expect(saved).toHaveLength(1)
+    expect(saved[0]).toMatchObject({ category: 'supplies', description: 'Lemon 10pcs - Audi', amountQar: 60 })
+  })
+})
+
+describe('the payment method', () => {
+  it('is a dropdown offering cash or card, not a free-text box', () => {
+    const select = screen.getByLabelText('Payment method') as HTMLSelectElement
+    expect(select.tagName).toBe('SELECT')
+    expect([...select.options].map(o => o.value)).toEqual(['Cash', 'Card'])
+  })
+
+  it('records the method the admin picks', async () => {
+    await user.type(field('Description'), 'Napkins')
+    await user.type(field('Amount QAR'), '20')
+    await user.selectOptions(screen.getByLabelText('Payment method'), 'Card')
+    await user.click(screen.getByRole('button', { name: 'Save expense' }))
+
+    await screen.findByText(/Expenses \(1\)/)
+    expect((await repo.all<FinanceExpense>('financeExpenses'))[0].paymentMethod).toBe('Card')
   })
 })

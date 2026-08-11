@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { InventoryScreen } from './InventoryScreen'
 import { repo } from '../../db/repo'
@@ -31,7 +31,10 @@ describe('adjusting stock', () => {
     await user.type(screen.getByLabelText('Adjust by, in g'), '250')
     await user.click(screen.getByRole('button', { name: 'Apply' }))
     expect((await stock('beans')).stockQty).toBe(1250)
-    expect((await repo.all<InventoryAdjustment>('inventoryAdjustments'))[0]).toMatchObject({ delta: 250, reason: 'restock' })
+    // The audit row is written after the stock row, so wait for it rather than
+    // reading in the gap between the two writes.
+    await waitFor(async () =>
+      expect((await repo.all<InventoryAdjustment>('inventoryAdjustments'))[0]).toMatchObject({ delta: 250, reason: 'restock' }))
   })
 
   it('takes stock away on a negative delta', async () => {
