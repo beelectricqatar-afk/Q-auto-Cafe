@@ -7,20 +7,38 @@ import { useToast } from '../../components/Toast'
 import { Card } from '../../components/Card'
 import { subDivision } from '../../domain/deduction'
 
-const UNITS: Unit[] = ['ml', 'g', 'pcs', 'shot', 'oz', 'slices', 'leaves', 'bag']
+// Order roughly by how often they are picked, volume then weight then counts.
+const UNITS: Unit[] = ['ml', 'L', 'g', 'kg', 'pcs', 'shot', 'oz', 'slices', 'leaves', 'bag', 'bundle']
 
 export function InventoryScreen({ data, refresh }: { data: Data; refresh: () => Promise<void> }) {
   const toast = useToast()
   const [adjusting, setAdjusting] = useState<Ingredient | null>(null)
   const [delta, setDelta] = useState('')
+  // Bundles vary in size, so the conversion is editable here as well as on the
+  // edit form — the moment stock arrives is when its real yield is known.
+  const [per, setPer] = useState('')
+  const openAdjust = (i: Ingredient) => { setAdjusting(i); setDelta(''); setPer(String(i.subUnitPer ?? '')) }
+  const closeAdjust = () => { setAdjusting(null); setDelta(''); setPer('') }
+
   const applyAdjust = async () => {
     if (!adjusting) return
-    const d = Number(delta); if (!d) { setAdjusting(null); return }
-    const ing = { ...adjusting, stockQty: Math.round((adjusting.stockQty + d) * 1000) / 1000 }
+    const d = Number(delta) || 0
+    const nextPer = Number(per) || 0
+    const perChanged = !!adjusting.subUnit && nextPer !== (adjusting.subUnitPer ?? 0)
+    if (!d && !perChanged) { closeAdjust(); return }
+
+    const ing: Ingredient = {
+      ...adjusting,
+      stockQty: Math.round((adjusting.stockQty + d) * 1000) / 1000,
+      ...(perChanged && { subUnitPer: nextPer }),
+    }
     await repo.put('ingredients', ing)
-    const adj: InventoryAdjustment = { id: crypto.randomUUID(), timestamp: Date.now(), ingredientId: ing.id, delta: d, reason: 'restock' }
-    await repo.put('inventoryAdjustments', adj)
-    setAdjusting(null); setDelta(''); await refresh(); toast('Stock updated')
+    if (d) {
+      const adj: InventoryAdjustment = { id: crypto.randomUUID(), timestamp: Date.now(), ingredientId: ing.id, delta: d, reason: 'restock' }
+      await repo.put('inventoryAdjustments', adj)
+    }
+    closeAdjust(); await refresh()
+    toast(d ? 'Stock updated' : `Now ${nextPer} ${adjusting.subUnit} per ${adjusting.unit}`)
   }
   return (
     <div style={{ display: 'grid', gap: 16 }}>
@@ -54,7 +72,7 @@ export function InventoryScreen({ data, refresh }: { data: Data; refresh: () => 
               {halfSet && <span style={{ color: 'var(--danger)', fontWeight: 700 }}>SET {i.subUnit!.toUpperCase()} PER {i.unit.toUpperCase()}</span>}
               {' '}
               {i.stockQty <= i.lowStockThreshold && <span style={{ color: 'var(--danger)', fontWeight: 700 }}>LOW</span>}
-              <button onClick={() => setAdjusting(i)} style={{ marginLeft: 8, border: '1px solid var(--line)', borderRadius: 8, padding: '2px 10px', background: '#fff' }}>Adjust</button>
+              <button onClick={() => openAdjust(i)} style={{ marginLeft: 8, border: '1px solid var(--line)', borderRadius: 8, padding: '2px 10px', background: '#fff' }}>Adjust</button>
             </span>
           )
         }}
@@ -70,7 +88,24 @@ export function InventoryScreen({ data, refresh }: { data: Data; refresh: () => 
             <span style={{ color: 'var(--muted)' }}>
               In {adjusting.unit} - e.g. +5000 received, -200 wastage:
             </span>
-            <input type="number" value={delta} onChange={e => setDelta(e.target.value)} style={{ padding: 8, borderRadius: 8, border: '1px solid var(--line)' }} />
+            <input type="number" value={delta} onChange={e => setDelta(e.target.value)} aria-label={`Adjust by, in ${adjusting.unit}`} style={{ padding: 8, borderRadius: 8, border: '1px solid var(--line)' }} />
+
+            {/* Set the yield as stock arrives — this bundle may not match the last. */}
+            {adjusting.subUnit && (
+              <>
+                <span style={{ color: 'var(--muted)', borderLeft: '1px solid var(--line)', paddingLeft: 16 }}>
+                  {adjusting.subUnit} per {adjusting.unit}:
+                </span>
+                <input
+                  type="number"
+                  value={per}
+                  onChange={e => setPer(e.target.value)}
+                  aria-label={`${adjusting.subUnit} per ${adjusting.unit}`}
+                  style={{ width: 90, padding: 8, borderRadius: 8, border: '1px solid var(--line)' }}
+                />
+              </>
+            )}
+
             <button onClick={applyAdjust} style={{ background: '#1A1A1A', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px', fontWeight: 700 }}>Apply</button>
           </div>
         </Card>

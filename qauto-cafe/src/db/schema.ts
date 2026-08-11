@@ -1,4 +1,6 @@
-export type Unit = 'ml' | 'g' | 'pcs' | 'shot' | 'oz' | 'slices' | 'leaves' | 'bag'
+// 'L' is capitalised deliberately: a lower-case l reads as a 1 on a receipt or
+// a cramped label. 'bundle' sits alongside 'bag' for herbs bought tied.
+export type Unit = 'ml' | 'L' | 'g' | 'kg' | 'pcs' | 'shot' | 'oz' | 'slices' | 'leaves' | 'bag' | 'bundle'
 export type ExpenseCategory = 'supplies' | 'utilities' | 'maintenance' | 'packaging' | 'petty-cash' | 'salaries' | 'rent' | 'other'
 
 export interface Department { id: string; name: string; mainExtension: string; active: boolean }
