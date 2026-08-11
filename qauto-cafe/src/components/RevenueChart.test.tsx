@@ -1,8 +1,9 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { cleanup, render, screen, within } from '@testing-library/react'
+import { act, cleanup, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { RevenueChart } from './RevenueChart'
 import type { RevenuePoint } from '../domain/revenueSeries'
+import { resizeTo } from '../test-setup'
 
 const pt = (label: string, value: number, from: number): RevenuePoint => ({ label, value, from, to: from + 1 })
 const series = [pt('09:00', 120, 1), pt('10:00', 0, 2), pt('11:00', 80.5, 3)]
@@ -92,5 +93,36 @@ describe('RevenueChart', () => {
   it('curves through the points rather than joining them with straight lines', () => {
     show()
     expect(document.querySelector('path[stroke="#999999"]')!.getAttribute('d')).toContain('C')
+  })
+})
+
+describe('filling the card', () => {
+  it('starts at a sensible width before it has been measured', () => {
+    show()
+    expect(screen.getByRole('img').getAttribute('viewBox')).toBe('0 0 900 260')
+  })
+
+  it('redraws to the width the card actually gives it', async () => {
+    show()
+    await act(async () => { resizeTo(1600) })
+    // A fixed viewBox would letterbox here, leaving gaps down both sides.
+    expect(screen.getByRole('img').getAttribute('viewBox')).toBe('0 0 1600 260')
+  })
+
+  it('spans the full width, leaving only the axis gutter', async () => {
+    show()
+    await act(async () => { resizeTo(1600) })
+    const grid = document.querySelector('line[stroke="#f2f2f2"]')!
+    expect(grid.getAttribute('x1')).toBe('56')      // room for the money labels
+    expect(grid.getAttribute('x2')).toBe('1592')    // 1600 less an 8px margin
+  })
+
+  it('keeps measuring while empty, so arriving data is drawn at full width', async () => {
+    show([])
+    await act(async () => { resizeTo(1600) })
+    cleanup()
+    render(<RevenueChart points={series} rangeLabel="Today" />)
+    await act(async () => { resizeTo(1600) })
+    expect(screen.getByRole('img').getAttribute('viewBox')).toBe('0 0 1600 260')
   })
 })

@@ -1,14 +1,15 @@
-import { useMemo, useState } from 'react'
+import { useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { formatQar } from '../domain/money'
 import { axisTicks, labelStride, type RevenuePoint } from '../domain/revenueSeries'
 import { areaPath, smoothPath } from '../domain/chartPath'
 
-// Plot geometry, in SVG user units. The chart scales to its container via
-// viewBox, so these are a coordinate system rather than pixels.
-const W = 900
+// The viewBox is sized to the card's real width so the drawing maps 1:1 to
+// pixels. A fixed viewBox gets letterboxed on a wide card — preserveAspectRatio
+// fits the whole box inside, scaling to the height and leaving gaps down both
+// sides — and stretching it instead would distort the text.
 const H = 260
-const PAD = { top: 12, right: 12, bottom: 28, left: 56 }
-const PLOT_W = W - PAD.left - PAD.right
+const PAD = { top: 12, right: 8, bottom: 28, left: 56 }
+const FALLBACK_W = 900
 const PLOT_H = H - PAD.top - PAD.bottom
 
 // Taken from the Figma export rather than guessed: the line is #999999 at 2px
@@ -31,14 +32,34 @@ const tickLabel = (v: number) => Math.round(v).toLocaleString()
  */
 export function RevenueChart({ points, rangeLabel }: { points: RevenuePoint[]; rangeLabel: string }) {
   const [hover, setHover] = useState<number | null>(null)
+  const plotRef = useRef<HTMLDivElement>(null)
+  const [width, setWidth] = useState(FALLBACK_W)
+
+  // Width comes from the element itself, so the chart fills whatever space the
+  // card gives it. The observer is the external system here; state is set from
+  // its callback rather than in the effect body.
+  useLayoutEffect(() => {
+    const el = plotRef.current
+    if (!el || typeof ResizeObserver === 'undefined') return
+    const observer = new ResizeObserver(entries => {
+      const measured = entries[0]?.contentRect.width ?? 0
+      if (measured > 0) setWidth(Math.round(measured))
+    })
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [])
+
+  const W = width
+  const PLOT_W = Math.max(1, W - PAD.left - PAD.right)
 
   const ticks = useMemo(() => axisTicks(Math.max(...points.map(p => p.value), 0)), [points])
   const top = ticks[ticks.length - 1] || 1
-  const total = useMemo(() => points.reduce((s, p) => s + p.value, 0), [points])
+  const total = useMemo(() => points.reduce((sum, p) => sum + p.value, 0), [points])
 
   // A single point has no width to spread across, so it sits mid-plot.
   const x = (i: number) => points.length <= 1 ? PAD.left + PLOT_W / 2 : PAD.left + (i * PLOT_W) / (points.length - 1)
   const y = (v: number) => PAD.top + PLOT_H - (v / top) * PLOT_H
+  const step = points.length > 1 ? PLOT_W / (points.length - 1) : PLOT_W
 
   const coords = points.map((p, i) => ({ x: x(i), y: y(p.value) }))
   const line = smoothPath(coords)
@@ -53,24 +74,32 @@ export function RevenueChart({ points, rangeLabel }: { points: RevenuePoint[]; r
           <div style={{ fontSize: 18, fontWeight: 600, color: INK, lineHeight: '28px' }}>Revenue</div>
           {/* The window is named on the right, so this states the total only —
               lower-casing a date label also read badly ("23 jun 2026"). */}
-          <div style={{ fontSize: 14, color: MUTED, lineHeight: '20px' }}>
-            {formatQar(total)} in total
-          </div>
+          <div style={{ fontSize: 14, color: MUTED, lineHeight: '20px' }}>{formatQar(total)} in total</div>
         </div>
         <div style={{ fontSize: 14, color: MUTED, whiteSpace: 'nowrap' }}>{rangeLabel}</div>
       </div>
 
-      {points.length === 0
-        ? <div style={{ color: MUTED, padding: '24px 0' }}>No orders in this period.</div>
-        : (
-          <div style={{ position: 'relative' }}>
+      {/* Always rendered, so the observer keeps measuring even while empty —
+          otherwise going from no orders to some would keep the fallback width. */}
+      <div ref={plotRef} style={{ position: 'relative' }}>
+        {points.length === 0 ? (
+          <div style={{ color: MUTED, padding: '24px 0' }}>No orders in this period.</div>
+        ) : (
+          <>
             <svg
               viewBox={`0 0 ${W} ${H}`}
               role="img"
               aria-label={`Revenue over ${rangeLabel}, ${formatQar(total)} in total`}
-              style={{ width: '100%', height: 260, display: 'block', overflow: 'visible' }}
+              style={{ width: '100%', height: H, display: 'block' }}
               onMouseLeave={() => setHover(null)}
             >
+              <defs>
+                <linearGradient id="revenue-fill" x1="0" y1={PAD.top} x2="0" y2={PAD.top + PLOT_H} gradientUnits="userSpaceOnUse">
+                  <stop stopColor={FILL} />
+                  <stop offset="1" stopColor={FILL} stopOpacity="0" />
+                </linearGradient>
+              </defs>
+
               {/* Grid and y-axis. Recessive: the data is the subject. */}
               {ticks.map(t => (
                 <g key={t}>
@@ -79,12 +108,6 @@ export function RevenueChart({ points, rangeLabel }: { points: RevenuePoint[]; r
                 </g>
               ))}
 
-              <defs>
-                <linearGradient id="revenue-fill" x1="0" y1={PAD.top} x2="0" y2={PAD.top + PLOT_H} gradientUnits="userSpaceOnUse">
-                  <stop stopColor={FILL} />
-                  <stop offset="1" stopColor={FILL} stopOpacity="0" />
-                </linearGradient>
-              </defs>
               <path d={area} fill="url(#revenue-fill)" opacity={0.1} />
               <path d={line} fill="none" stroke={LINE} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
 
@@ -106,9 +129,9 @@ export function RevenueChart({ points, rangeLabel }: { points: RevenuePoint[]; r
               {points.map((p, i) => (
                 <rect
                   key={`hit-${p.from}`}
-                  x={x(i) - (points.length > 1 ? PLOT_W / (points.length - 1) / 2 : PLOT_W / 2)}
+                  x={x(i) - step / 2}
                   y={PAD.top}
-                  width={points.length > 1 ? PLOT_W / (points.length - 1) : PLOT_W}
+                  width={step}
                   height={PLOT_H}
                   fill="transparent"
                   onMouseEnter={() => setHover(i)}
@@ -129,8 +152,9 @@ export function RevenueChart({ points, rangeLabel }: { points: RevenuePoint[]; r
                 {active.label} · {formatQar(active.value)}
               </div>
             )}
-          </div>
+          </>
         )}
+      </div>
     </div>
   )
 }
