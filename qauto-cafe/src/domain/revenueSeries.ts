@@ -101,3 +101,60 @@ export function axisTicks(max: number, count = 5): number[] {
 export function labelStride(count: number, max = 12): number {
   return count <= max ? 1 : Math.ceil(count / max)
 }
+
+export interface AxisLabelLayout {
+  /** Degrees. 0 is flat; negative tilts the text up towards the right. */
+  angle: 0 | -45 | -90
+  fontSize: number
+  /** Show every nth label. 1 — all of them — unless nothing else fits. */
+  stride: number
+  /** Distance from the plot's bottom edge down to the text anchor. */
+  offset: number
+  /** Total space the labels need below the plot. */
+  height: number
+}
+
+// Helvetica/Arial averages a shade under 0.6em per character across mixed case
+// and digits — close enough to decide whether a label fits.
+const textWidth = (chars: number, fontSize: number) => chars * fontSize * 0.6
+
+/** Roughly how wide a label renders, for spotting one that would be cut off. */
+export const labelWidth = (text: string, fontSize: number) => textWidth(text.length, fontSize)
+
+// Tried in order, best-looking first: tilt before shrinking, because a 12px
+// label on its side still reads where a 9px flat one does not.
+const CANDIDATES: { angle: 0 | -45 | -90; fontSize: number }[] = [
+  { angle: 0, fontSize: 12 },
+  { angle: -45, fontSize: 12 },
+  { angle: -90, fontSize: 12 },
+  { angle: -90, fontSize: 10 },
+  { angle: -90, fontSize: 9 },
+]
+
+/** The horizontal room one label needs, which for tilted text is its height. */
+const slotNeeded = (angle: number, fontSize: number, chars: number) =>
+  angle === 0 ? textWidth(chars, fontSize) + 8 : fontSize * (angle === -45 ? 1.5 : 1.05)
+
+/**
+ * How to draw the x-axis labels so that every one of them is shown.
+ *
+ * A month picked on the dashboard is 31 columns, and "5 Aug" laid flat needs
+ * more width than a column gets — so the axis tilts, and then stands the labels
+ * upright, and only then shrinks them. Dropping labels is the last resort, for
+ * a span so dense that nothing legible fits; the caller is told via `stride`.
+ */
+export function axisLabelLayout(labels: string[], step: number): AxisLabelLayout {
+  const chars = labels.reduce((most, label) => Math.max(most, label.length), 0)
+  const fits = CANDIDATES.find(c => slotNeeded(c.angle, c.fontSize, chars) <= step)
+  const { angle, fontSize } = fits ?? CANDIDATES[CANDIDATES.length - 1]
+
+  // Only when even the tightest setting overlaps does a label get dropped.
+  const stride = fits ? 1 : labelStride(labels.length, Math.max(1, Math.floor(step * labels.length / slotNeeded(angle, fontSize, chars))))
+
+  if (angle === 0) return { angle, fontSize, stride, offset: fontSize + 10, height: fontSize + 16 }
+  // Tilted text hangs below its anchor: at 45° by sin(45) of its length, and
+  // upright by the whole of it.
+  const run = textWidth(chars, fontSize) * (angle === -45 ? Math.SQRT1_2 : 1)
+  const offset = angle === -45 ? fontSize : fontSize - 2
+  return { angle, fontSize, stride, offset, height: offset + run + 6 }
+}

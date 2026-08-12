@@ -1,16 +1,18 @@
 import { useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { formatQar } from '../domain/money'
-import { axisTicks, labelStride, type RevenuePoint } from '../domain/revenueSeries'
+import { axisLabelLayout, axisTicks, labelWidth, type RevenuePoint } from '../domain/revenueSeries'
 import { areaPath, smoothPath } from '../domain/chartPath'
 
 // The viewBox is sized to the card's real width so the drawing maps 1:1 to
 // pixels. A fixed viewBox gets letterboxed on a wide card — preserveAspectRatio
 // fits the whole box inside, scaling to the height and leaving gaps down both
 // sides — and stretching it instead would distort the text.
-const H = 260
-const PAD = { top: 12, right: 8, bottom: 28, left: 56 }
+// The plot keeps its height and the box grows underneath it, because the label
+// band is not a fixed size: every label is shown, so a month of tilted dates
+// needs far more room below the axis than a handful of flat month names.
+const PLOT_H = 220
+const PAD = { top: 12, right: 8, left: 56 }
 const FALLBACK_W = 900
-const PLOT_H = H - PAD.top - PAD.bottom
 
 // Taken from the Figma export rather than guessed: the line is #999999 at 2px
 // with round caps, the area is #465FFF on a vertical fade at 0.1 opacity, and
@@ -64,8 +66,21 @@ export function RevenueChart({ points, rangeLabel }: { points: RevenuePoint[]; r
   const coords = points.map((p, i) => ({ x: x(i), y: y(p.value) }))
   const line = smoothPath(coords)
   const area = areaPath(coords, PAD.top + PLOT_H)
-  const stride = labelStride(points.length)
+  // Every label is drawn, so the axis decides its own angle, size and depth
+  // from the room each column actually has.
+  const axis = axisLabelLayout(points.map(p => p.label), step)
+  const axisY = PAD.top + PLOT_H + axis.offset
+  const H = PAD.top + PLOT_H + axis.height
   const active = hover != null ? points[hover] : null
+
+  /** Centred, except at the edges where a centred label would be clipped. */
+  const flatAnchor = (label: string, at: number) => {
+    if (axis.angle !== 0) return 'end'
+    const half = labelWidth(label, axis.fontSize) / 2
+    if (at - half < 2) return 'start'
+    if (at + half > W - 2) return 'end'
+    return 'middle'
+  }
 
   return (
     <div style={{ background: '#fff', border: '1px solid #e5e5e5', borderRadius: 16, padding: 24, display: 'flex', flexDirection: 'column', gap: 24 }}>
@@ -119,8 +134,20 @@ export function RevenueChart({ points, rangeLabel }: { points: RevenuePoint[]; r
                 </>
               )}
 
-              {points.map((p, i) => (
-                <text key={p.from} x={x(i)} y={H - 8} textAnchor="middle" fontSize={12} fill={i % stride === 0 ? INK : 'transparent'}>
+              {points.map((p, i) => i % axis.stride !== 0 ? null : (
+                <text
+                  key={p.from}
+                  x={x(i)}
+                  y={axisY}
+                  // Tilted labels end at their tick and trail away down-left, so
+                  // each one points at the column it belongs to. A flat label
+                  // sits centred unless that would run it off the edge — the
+                  // last one otherwise loses its final letter.
+                  textAnchor={flatAnchor(p.label, x(i))}
+                  fontSize={axis.fontSize}
+                  fill={INK}
+                  {...(axis.angle !== 0 && { transform: `rotate(${axis.angle} ${x(i)} ${axisY})` })}
+                >
                   {p.label}
                 </text>
               ))}
