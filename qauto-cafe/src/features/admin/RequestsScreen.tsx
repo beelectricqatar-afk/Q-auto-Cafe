@@ -1,4 +1,4 @@
-import { useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import type { Request } from '../../db/schema'
 import type { Data } from '../../app/useData'
 import { client } from '../../sync/client'
@@ -6,8 +6,8 @@ import { useToast } from '../../components/Toast'
 import { formatQar } from '../../domain/money'
 import { Card } from '../../components/Card'
 import { Modal } from '../../components/Modal'
+import { TypeAhead } from '../../components/TypeAhead'
 import { TrashIcon } from './sidebarIcons'
-import { matchNames, replaceWordAt, wordAt } from '../../domain/search'
 import { expenseDescriptionFor, requestItems, requestLines, type RequestItem } from '../../domain/requests'
 import { branchLabel } from '../../domain/branch'
 import { estimateCost } from '../../domain/estimateCost'
@@ -27,53 +27,14 @@ export function RequestsScreen({ data, state }: { data: Data; state: RequestsSta
   // Held here rather than inside the panel so a requested item can fill it.
   const expenseForm = useExpenseForm()
 
-  // Type-ahead over the inventory: completes the word under the caret so a
-  // request can be written without spelling out every item in full.
-  const boxRef = useRef<HTMLTextAreaElement>(null)
-  const pendingCaret = useRef<number | null>(null)
-  const [caret, setCaret] = useState(0)
-  const [highlight, setHighlight] = useState(0)
-  const [dismissed, setDismissed] = useState(false)
-
+  // Completing item names off the inventory, shared with the expense form.
+  const names = useMemo(() => data.ingredients.map(i => i.name), [data.ingredients])
   const stockOf = useMemo(() => {
     const byName = new Map<string, string>()
     for (const i of data.ingredients) if (!byName.has(i.name.trim())) byName.set(i.name.trim(), `${i.stockQty}${i.unit}`)
     return byName
   }, [data.ingredients])
-
-  const suggestions = useMemo(
-    () => dismissed ? [] : matchNames(wordAt(message, caret).word, data.ingredients.map(i => i.name)),
-    [dismissed, message, caret, data.ingredients],
-  )
-
-  // Once the completed text is on screen, move the real caret to match.
-  useLayoutEffect(() => {
-    const at = pendingCaret.current
-    if (at == null) return
-    pendingCaret.current = null
-    boxRef.current?.focus()
-    boxRef.current?.setSelectionRange(at, at)
-  }, [message])
-
-  const accept = (name: string) => {
-    const next = replaceWordAt(message, caret, name)
-    pendingCaret.current = next.caret
-    setMessage(next.text)
-    setCaret(next.caret)
-    setHighlight(0)
-    // The completed name would otherwise match itself and reopen the list.
-    setDismissed(true)
-  }
-
-  const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (suggestions.length === 0) return
-    if (e.key === 'ArrowDown') { e.preventDefault(); setHighlight(h => (h + 1) % suggestions.length) }
-    else if (e.key === 'ArrowUp') { e.preventDefault(); setHighlight(h => (h - 1 + suggestions.length) % suggestions.length) }
-    else if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); accept(suggestions[highlight]) }
-    else if (e.key === 'Escape') { e.preventDefault(); setDismissed(true) }
-  }
-
-  const syncCaret = (el: HTMLTextAreaElement) => setCaret(el.selectionStart ?? el.value.length)
+  const stockHint = useCallback((name: string) => stockOf.get(name) ?? '', [stockOf])
 
   const load = reload
 
@@ -152,42 +113,16 @@ export function RequestsScreen({ data, state }: { data: Data; state: RequestsSta
         <Card title="Send a request to the admin" style={{ overflow: 'visible' }}>
           <div style={{ display: 'grid', gap: 10 }}>
             <input value={from} onChange={e => setFrom(e.target.value)} placeholder="Your name (optional)" style={{ padding: 10, borderRadius: 8, border: '1px solid var(--line)', fontSize: 16 }} />
-            <div style={{ position: 'relative' }}>
-              <textarea
-                ref={boxRef}
-                value={message}
-                onChange={e => { setMessage(e.target.value); setDismissed(false); setHighlight(0); syncCaret(e.target) }}
-                onKeyUp={e => syncCaret(e.currentTarget)}
-                onClick={e => syncCaret(e.currentTarget)}
-                onBlur={() => setTimeout(() => setDismissed(true), 120)}
-                onKeyDown={onKeyDown}
-                rows={3}
-                placeholder="e.g. We need more oranges, 5kg"
-                style={{ width: '100%', boxSizing: 'border-box', padding: 10, borderRadius: 8, border: '1px solid var(--line)', fontFamily: 'inherit', fontSize: 16 }}
-              />
-              {suggestions.length > 0 && (
-                <div
-                  role="listbox"
-                  aria-label="Inventory suggestions"
-                  style={{ position: 'absolute', zIndex: 5, left: 0, right: 0, top: 'calc(100% + 4px)', background: '#fff', border: '1px solid var(--line)', borderRadius: 8, boxShadow: '0 8px 24px rgba(0,0,0,.12)', overflowY: 'auto', maxHeight: 260 }}
-                >
-                  {suggestions.map((name, i) => (
-                    <button
-                      key={name}
-                      role="option"
-                      aria-selected={i === highlight}
-                      // The textarea's blur would close the list before the click lands.
-                      onMouseDown={e => { e.preventDefault(); accept(name) }}
-                      onMouseEnter={() => setHighlight(i)}
-                      style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, width: '100%', textAlign: 'left', border: 'none', padding: '9px 12px', fontSize: 15, cursor: 'pointer', background: i === highlight ? '#f2f2f2' : '#fff' }}
-                    >
-                      <span>{name}</span>
-                      <span style={{ color: 'var(--muted)', fontSize: 13 }}>{stockOf.get(name) ?? ''}</span>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
+            <TypeAhead
+              value={message}
+              onChange={setMessage}
+              names={names}
+              hint={stockHint}
+              rows={3}
+              label="Request"
+              placeholder="e.g. We need more oranges, 5kg"
+              style={{ width: '100%', boxSizing: 'border-box', padding: 10, borderRadius: 8, border: '1px solid var(--line)', fontFamily: 'inherit', fontSize: 16 }}
+            />
             <button onClick={send} style={{ background: '#1A1A1A', color: '#fff', border: 'none', borderRadius: 10, padding: 14, fontWeight: 800, fontSize: 16 }}>Send request</button>
           </div>
         </Card>
@@ -205,7 +140,7 @@ export function RequestsScreen({ data, state }: { data: Data; state: RequestsSta
         </div>
 
         <div style={{ display: 'grid', gap: 16 }}>
-          <ExpensesPanel state={expenseForm} />
+          <ExpensesPanel state={expenseForm} names={names} hint={stockHint} />
         </div>
       </div>
 

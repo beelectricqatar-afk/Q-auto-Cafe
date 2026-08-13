@@ -6,6 +6,7 @@ import { useToast } from '../../components/Toast'
 import { formatQar } from '../../domain/money'
 import { EXPENSE_CATEGORIES, EXPENSE_CATEGORY_LABELS, makeExpense } from '../../domain/finance'
 import { exportExpenseTemplate, importExpenseWorkbook } from '../../domain/financeExports'
+import { TypeAhead } from '../../components/TypeAhead'
 import { TrashIcon } from './sidebarIcons'
 import type { ExpenseFormState } from './useExpenseForm'
 
@@ -22,7 +23,12 @@ const PAID_IN = 'Cash'
  * picker, and hiding older rows behind an invisible filter would read as data
  * loss. Finance still reads expenses for its own totals; only the entry moved.
  */
-export function ExpensesPanel({ state }: { state: ExpenseFormState }) {
+export function ExpensesPanel({ state, names = [], hint }: {
+  state: ExpenseFormState
+  /** Inventory names the description completes from. */
+  names?: string[]
+  hint?: (name: string) => string
+}) {
   const { form, setForm, reset } = state
   const toast = useToast()
   const fileRef = useRef<HTMLInputElement | null>(null)
@@ -85,14 +91,24 @@ export function ExpensesPanel({ state }: { state: ExpenseFormState }) {
 
   return (
     <>
-      <Card hoverable title="Add expense">
+      {/* The card clips to its corners by default, which would cut off the
+          description's suggestion list. */}
+      <Card hoverable title="Add expense" style={{ overflow: 'visible' }}>
         <div style={{ display: 'grid', gap: 10 }}>
           <input type="date" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} aria-label="Expense date" style={input} />
           <select value={form.category} onChange={e => setForm({ ...form, category: e.target.value as FinanceExpense['category'] })} aria-label="Category" style={input}>
             {EXPENSE_CATEGORIES.map(c => <option key={c} value={c}>{EXPENSE_CATEGORY_LABELS[c]}</option>)}
           </select>
           <input value={form.vendor} onChange={e => setForm({ ...form, vendor: e.target.value })} placeholder="Vendor" style={input} />
-          <input value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} placeholder="Description" style={input} />
+          <TypeAhead
+            value={form.description}
+            onChange={description => setForm({ ...form, description })}
+            names={names}
+            hint={hint}
+            label="Description"
+            placeholder="Description"
+            style={{ ...input, width: '100%', boxSizing: 'border-box' }}
+          />
           <input type="number" value={form.amountQar} onChange={e => setForm({ ...form, amountQar: e.target.value })} placeholder="Amount QAR" style={input} />
           <input value={form.reference} onChange={e => setForm({ ...form, reference: e.target.value })} placeholder="Reference" style={input} />
           <textarea value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} placeholder="Notes" rows={3} style={{ ...input, fontFamily: 'inherit' }} />

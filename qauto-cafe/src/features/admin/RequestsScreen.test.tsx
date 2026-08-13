@@ -344,3 +344,78 @@ describe('estimating what a requested item costs', () => {
     expect((await repo.all<FinanceExpense>('financeExpenses'))[0]).toMatchObject({ amountQar: 30, category: 'supplies' })
   })
 })
+
+const description = () => screen.getByPlaceholderText('Description') as HTMLInputElement
+const descList = () => screen.getByRole('listbox', { name: 'Description suggestions' })
+
+describe('completing the expense description from the inventory', () => {
+  it('offers matching inventory items as you type', async () => {
+    await user.type(description(), 'ora')
+    expect(within(descList()).getByRole('option', { name: /Fresh Orange/ })).toBeInTheDocument()
+    expect(within(descList()).getByRole('option', { name: /Orange Juice/ })).toBeInTheDocument()
+  })
+
+  it('shows the current stock beside each suggestion, as the request box does', async () => {
+    await user.type(description(), 'lem')
+    expect(within(descList()).getByRole('option', { name: /Lemon/ })).toHaveTextContent('40pcs')
+  })
+
+  it('completes on click', async () => {
+    await user.type(description(), 'ora')
+    await user.click(within(descList()).getByRole('option', { name: /Fresh Orange/ }))
+    expect(description()).toHaveValue('Fresh Orange ')
+    expect(screen.queryByRole('listbox', { name: 'Description suggestions' })).not.toBeInTheDocument()
+  })
+
+  it('completes with the keyboard', async () => {
+    await user.type(description(), 'mint')
+    await user.keyboard('{Enter}')
+    expect(description()).toHaveValue('Mint Leaves ')
+  })
+
+  // The point of completing the word rather than the field: a description is
+  // usually a name plus a quantity, not a bare name.
+  it('completes the word under the caret and leaves the rest alone', async () => {
+    await user.type(description(), '5kg of ora')
+    await user.click(within(descList()).getByRole('option', { name: /Fresh Orange/ }))
+    expect(description()).toHaveValue('5kg of Fresh Orange ')
+    await user.type(description(), 'for Audi')
+    expect(description()).toHaveValue('5kg of Fresh Orange for Audi')
+  })
+
+  it('stays out of the way until there is enough to match on', async () => {
+    await user.type(description(), 'o')
+    expect(screen.queryByRole('listbox', { name: 'Description suggestions' })).not.toBeInTheDocument()
+  })
+
+  it('dismisses on Escape and keeps the typed text', async () => {
+    await user.type(description(), 'ora')
+    await user.keyboard('{Escape}')
+    expect(screen.queryByRole('listbox', { name: 'Description suggestions' })).not.toBeInTheDocument()
+    expect(description()).toHaveValue('ora')
+  })
+
+  it('saves what was completed', async () => {
+    await user.type(description(), 'ora')
+    await user.click(within(descList()).getByRole('option', { name: /Fresh Orange/ }))
+    await user.type(field('Amount QAR'), '70')
+    await user.click(screen.getByRole('button', { name: 'Save expense' }))
+
+    await screen.findByText(/Expenses \(1\)/)
+    expect((await repo.all<FinanceExpense>('financeExpenses'))[0].description).toBe('Fresh Orange')
+  })
+
+  // The list hangs below the box and out of the card; a card clips to its
+  // rounded corners by default, which is what cut the request list off before.
+  it('is not clipped by the card it sits in', () => {
+    const card = screen.getByText('Add expense').parentElement!.parentElement!
+    expect(card.style.overflow).toBe('visible')
+  })
+
+  // Two boxes on one page, each with its own list.
+  it('does not disturb the request box', async () => {
+    await user.type(description(), 'ora')
+    expect(screen.queryByRole('listbox', { name: 'Request suggestions' })).not.toBeInTheDocument()
+    expect(box()).toHaveValue('')
+  })
+})
