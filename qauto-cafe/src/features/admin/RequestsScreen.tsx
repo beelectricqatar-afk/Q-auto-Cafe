@@ -3,12 +3,14 @@ import type { Request } from '../../db/schema'
 import type { Data } from '../../app/useData'
 import { client } from '../../sync/client'
 import { useToast } from '../../components/Toast'
+import { formatQar } from '../../domain/money'
 import { Card } from '../../components/Card'
 import { Modal } from '../../components/Modal'
 import { TrashIcon } from './sidebarIcons'
 import { matchNames, replaceWordAt, wordAt } from '../../domain/search'
 import { expenseDescriptionFor, requestItems, requestLines, type RequestItem } from '../../domain/requests'
 import { branchLabel } from '../../domain/branch'
+import { estimateCost } from '../../domain/estimateCost'
 import { ExpensesPanel } from './ExpensesPanel'
 import { useExpenseForm } from './useExpenseForm'
 import type { RequestsState } from './useRequests'
@@ -93,9 +95,16 @@ export function RequestsScreen({ data, state }: { data: Data; state: RequestsSta
    * second item replaces the first rather than adding to it.
    */
   const raiseExpense = (item: RequestItem) => {
-    expenseForm.fromRequest(expenseDescriptionFor(item))
+    const estimate = estimateCost(item.text, data.priceList)
+    expenseForm.fromRequest(expenseDescriptionFor(item), estimate)
     setViewing(null)
-    toast('Started an expense - add the amount')
+    toast(estimate != null ? `Started an expense, about ${formatQar(estimate)}` : 'Started an expense - add the amount')
+  }
+
+  /** The price sheet's figure for a line, blank when it cannot say. */
+  const priced = (line: string) => {
+    const estimate = estimateCost(line, data.priceList)
+    return estimate != null ? `~${formatQar(estimate)}` : ''
   }
 
   const openReqs = requests.filter(r => !r.done)
@@ -242,7 +251,7 @@ export function RequestsScreen({ data, state }: { data: Data; state: RequestsSta
                   >
                     <span>{item.text}</span>
                     <span style={{ color: 'var(--muted)', fontSize: 12, textDecoration: 'none', flexShrink: 0 }}>
-                      {branchLabel(item.branch)}
+                      {[branchLabel(item.branch), priced(item.text)].filter(Boolean).join(' · ')}
                     </span>
                   </button>
                 ),

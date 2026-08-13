@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useState } from 'react'
 import { repo } from '../db/repo'
-import { seedIfEmpty } from '../db/seed'
+import { seedIfEmpty, seedPriceList } from '../db/seed'
 import { syncNow, type SyncStatus } from '../sync/sync'
-import type { Department, Staff, Ingredient, Category, MenuItem } from '../db/schema'
+import type { Department, Staff, Ingredient, Category, MenuItem, PriceListItem } from '../db/schema'
 
-export interface Data { departments: Department[]; staff: Staff[]; ingredients: Ingredient[]; categories: Category[]; menuItems: MenuItem[] }
+export interface Data { departments: Department[]; staff: Staff[]; ingredients: Ingredient[]; categories: Category[]; menuItems: MenuItem[]; priceList: PriceListItem[] }
 
 async function readLocal(): Promise<Data> {
   return {
@@ -13,6 +13,7 @@ async function readLocal(): Promise<Data> {
     ingredients: await repo.all('ingredients'),
     categories: await repo.all('categories'),
     menuItems: await repo.all('menuItems'),
+    priceList: await repo.all('priceList'),
   }
 }
 
@@ -34,6 +35,7 @@ export function useData() {
   useEffect(() => {
     (async () => {
       await seedIfEmpty()          // offline-first fallback so a brand-new device isn't blank
+      await seedPriceList()        // top up the price sheet with any new rows
       await showLocal()            // show immediately
       setStatus(await syncNow())   // then reconcile with the cloud
       await showLocal()

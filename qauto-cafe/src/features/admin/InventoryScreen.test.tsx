@@ -18,7 +18,7 @@ const show = async (ingredients: Ingredient[]) => {
   cleanup()
   await repo.clearAll()
   for (const i of ingredients) await repo.put('ingredients', { ...i })
-  render(<InventoryScreen data={{ departments: [], staff: [], categories: [], menuItems: [], ingredients } as Data} refresh={refresh} />)
+  render(<InventoryScreen data={{ departments: [], staff: [], categories: [], menuItems: [], priceList: [], ingredients } as Data} refresh={refresh} />)
 }
 const stock = async (id: string) => (await repo.get<Ingredient>('ingredients', id))!
 

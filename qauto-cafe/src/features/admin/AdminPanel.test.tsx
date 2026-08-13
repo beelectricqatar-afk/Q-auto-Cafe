@@ -16,7 +16,7 @@ vi.mock('../../sync/client', () => ({
   },
 }))
 
-const data: Data = { departments: [], staff: [], categories: [], menuItems: [], ingredients: [] }
+const data: Data = { priceList: [], departments: [], staff: [], categories: [], menuItems: [], ingredients: [] }
 const req = (id: string, done: boolean): Request => ({ id, timestamp: Date.UTC(2026, 7, 5), message: `Item ${id}`, from: 'Patrick', done })
 
 const requestsTab = () => screen.getByRole('button', { name: /Requests/ })

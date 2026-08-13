@@ -5,6 +5,26 @@
 // in pcs, served one pc at a time. Reading "1 pc per pcs" on a row is the point
 // — it says a serving is a whole piece, not a share of one.
 export type Unit = 'ml' | 'L' | 'g' | 'kg' | 'pcs' | 'pc' | 'shot' | 'oz' | 'slices' | 'leaves' | 'bag' | 'bottle' | 'bundle'
+/**
+ * One line of the supplier's price sheet: what a pack costs and how big it is.
+ *
+ * The pack is kept whole rather than divided into a rate, because that is how
+ * the price is quoted and how the stock arrives — "QAR 38.00 per 700 mL", not
+ * "QAR 0.054 per mL".
+ */
+export interface PriceListItem {
+  id: string
+  name: string
+  /** The sheet's own grouping, e.g. 'Syrup'. */
+  section?: string
+  priceQar: number
+  packQty: number
+  /** The sheet's unit of measure verbatim: kg, grams, liter, mL, each, bag... */
+  packUom: string
+  /** Names to look for in a request line, inventory spellings included. */
+  match: string[]
+}
+
 export type ExpenseCategory = 'supplies' | 'utilities' | 'maintenance' | 'packaging' | 'petty-cash' | 'salaries' | 'rent' | 'other'
 
 export interface Department { id: string; name: string; mainExtension: string; active: boolean }
@@ -94,9 +114,9 @@ export interface DeletionLog { id: string; timestamp: number; reason: string; or
 export interface Request { id: string; timestamp: number; message: string; from?: string; done?: boolean }
 
 export const DB_NAME = 'qauto_cafe'
-export const DB_VERSION = 7
+export const DB_VERSION = 8
 
-export const STORES = ['departments','staff','ingredients','categories','menuItems','orders','inventoryAdjustments','deletionLogs','requests','financeExpenses','financeReceipts','financeWastages','meta'] as const
+export const STORES = ['departments','staff','ingredients','categories','menuItems','orders','inventoryAdjustments','deletionLogs','requests','financeExpenses','financeReceipts','financeWastages','priceList','meta'] as const
 export type StoreName = typeof STORES[number]
 
 // Local-only outbox of pending changes awaiting push to Supabase (DB v2).
@@ -116,6 +136,10 @@ export const SYNC_TABLES: Partial<Record<StoreName, string>> = {
   financeExpenses: 'finance_expenses',
   financeReceipts: 'finance_receipts',
   financeWastages: 'finance_wastages',
+  // The price sheet is NOT synced. It ships in the app bundle and is seeded
+  // into every device identically, so there is nothing to reconcile — and a
+  // table listed here that does not exist in Supabase makes every sync report
+  // a failure. Add it here once there is a cloud table and a way to edit prices.
   // Requests are NOT synced through the local outbox — they live directly in
   // the shared Supabase `meta` table (see client.listRequests), so they appear
   // on every device without a dedicated table.

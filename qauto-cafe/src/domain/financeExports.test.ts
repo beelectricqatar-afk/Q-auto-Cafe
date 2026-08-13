@@ -27,7 +27,7 @@ const summaryOf = (orders: Order[]) => buildFinanceSummary({
 
 const pdfText = (orders: Order[]) => buildBusinessSummaryPdf(summaryOf(orders)).text()
 
-const data: Data = { departments, staff, categories, menuItems, ingredients }
+const data: Data = { priceList: [], departments, staff, categories, menuItems, ingredients }
 const round2 = (n: number) => Math.round(n * 100) / 100
 
 describe('detailed sales rows', () => {

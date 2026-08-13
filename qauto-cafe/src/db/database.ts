@@ -35,6 +35,9 @@ export function getDb(): Promise<IDBPDatabase> {
           const r = db.createObjectStore('financeReceipts', { keyPath: 'id' })
           r.createIndex('uploadedAt', 'uploadedAt')
         }
+        // The supplier price sheet (DB v8), so an expense raised from a request
+        // can be costed without the admin looking the price up.
+        if (!db.objectStoreNames.contains('priceList')) db.createObjectStore('priceList', { keyPath: 'id' })
         if (!db.objectStoreNames.contains('financeWastages')) {
           const w = db.createObjectStore('financeWastages', { keyPath: 'id' })
           w.createIndex('timestamp', 'timestamp')

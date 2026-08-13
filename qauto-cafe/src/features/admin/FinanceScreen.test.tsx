@@ -7,7 +7,7 @@ import { currentMonthKey, dayRange, monthRange, todayKey } from '../../domain/fi
 import type { Data } from '../../app/useData'
 import type { Order } from '../../db/schema'
 
-const data: Data = {
+const data: Data = { priceList: [],
   departments: [{ id: 'd1', name: 'Sales', mainExtension: '', active: true }],
   staff: [{ id: 's1', name: 'Aisha', position: '', email: '', extension: '1', departmentId: 'd1', active: true }],
   ingredients: [],

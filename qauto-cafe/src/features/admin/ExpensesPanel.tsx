@@ -11,8 +11,8 @@ import type { ExpenseFormState } from './useExpenseForm'
 
 const input = { padding: 10, borderRadius: 8, border: '1px solid var(--line)', fontSize: 15 } as const
 
-// Exactly the two ways this cafe pays for anything.
-const PAYMENT_METHODS = ['Cash', 'Card'] as const
+// Everything here is bought with petty cash, so the method is not asked for.
+const PAID_IN = 'Cash'
 
 /**
  * Recording expenses, kept beside supply requests rather than on the finance
@@ -52,7 +52,7 @@ export function ExpensesPanel({ state }: { state: ExpenseFormState }) {
       vendor: form.vendor.trim(),
       description: form.description.trim(),
       amountQar: amount,
-      paymentMethod: form.paymentMethod.trim() || 'Cash',
+      paymentMethod: PAID_IN,
       reference: form.reference.trim() || undefined,
       notes: form.notes.trim() || undefined,
     }))
@@ -94,9 +94,6 @@ export function ExpensesPanel({ state }: { state: ExpenseFormState }) {
           <input value={form.vendor} onChange={e => setForm({ ...form, vendor: e.target.value })} placeholder="Vendor" style={input} />
           <input value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} placeholder="Description" style={input} />
           <input type="number" value={form.amountQar} onChange={e => setForm({ ...form, amountQar: e.target.value })} placeholder="Amount QAR" style={input} />
-          <select value={form.paymentMethod} onChange={e => setForm({ ...form, paymentMethod: e.target.value })} aria-label="Payment method" style={input}>
-            {PAYMENT_METHODS.map(m => <option key={m} value={m}>{m}</option>)}
-          </select>
           <input value={form.reference} onChange={e => setForm({ ...form, reference: e.target.value })} placeholder="Reference" style={input} />
           <textarea value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} placeholder="Notes" rows={3} style={{ ...input, fontFamily: 'inherit' }} />
           <button onClick={save} style={{ background: '#1A1A1A', color: '#fff', border: 'none', borderRadius: 10, padding: 12, fontWeight: 800 }}>Save expense</button>

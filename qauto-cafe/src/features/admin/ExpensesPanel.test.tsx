@@ -11,7 +11,7 @@ import type { FinanceExpense } from '../../db/schema'
 
 const today = () => new Date().toISOString().slice(0, 10)
 
-const data: Data = { departments: [], staff: [], ingredients: [], categories: [], menuItems: [] }
+const data: Data = { priceList: [], departments: [], staff: [], ingredients: [], categories: [], menuItems: [] }
 
 let user: ReturnType<typeof userEvent.setup>
 

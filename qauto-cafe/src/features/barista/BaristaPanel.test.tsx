@@ -31,7 +31,7 @@ const flakes: MenuItem = {
   recipe: [{ ingredientId: 'beans', qty: 5 }],
 }
 
-const data: Data = {
+const data: Data = { priceList: [],
   departments: [{ id: 'd1', name: 'Audi Service', mainExtension: '', active: true }],
   staff: [{ id: 's1', name: 'Aisha', position: '', email: '', extension: '412', departmentId: 'd1', active: true }],
   categories: [{ id: 'hot', name: 'Hot Drinks', sortOrder: 1 }],

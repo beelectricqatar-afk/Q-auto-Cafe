@@ -7,7 +7,6 @@ export interface ExpenseForm {
   vendor: string
   description: string
   amountQar: string
-  paymentMethod: string
   reference: string
   notes: string
 }
@@ -18,7 +17,6 @@ export const expenseDefaults = (): ExpenseForm => ({
   vendor: '',
   description: '',
   amountQar: '',
-  paymentMethod: 'Cash',
   reference: '',
   notes: '',
 })
@@ -28,7 +26,7 @@ export interface ExpenseFormState {
   setForm: (form: ExpenseForm) => void
   reset: () => void
   /** Start a fresh expense for a requested item; everything else is left blank. */
-  fromRequest: (description: string) => void
+  fromRequest: (description: string, estimateQar?: number) => void
 }
 
 /**
@@ -46,14 +44,17 @@ export function useExpenseForm(): ExpenseFormState {
     form,
     setForm,
     reset: () => setForm(expenseDefaults()),
-    fromRequest: description => setForm({
+    fromRequest: (description, estimateQar) => setForm({
       ...expenseDefaults(),
       // Anything raised from a request is stock being bought in.
       category: 'supplies',
       description,
-      // Vendor, amount, reference and notes stay empty: a request says what is
-      // needed, never what it cost or who it was bought from. Guessing those
-      // would put invented figures into the P&L.
+      // The amount is the price sheet's estimate when the item and its quantity
+      // were both recognised, and blank when they were not — see estimateCost.
+      // Either way the admin types over it with what was actually paid.
+      amountQar: estimateQar != null ? String(estimateQar) : '',
+      // Vendor, reference and notes stay empty: a request says what is needed,
+      // never who sold it or against which invoice.
     }),
   }
 }
