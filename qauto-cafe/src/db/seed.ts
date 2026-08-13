@@ -6,20 +6,29 @@ import type { Department, Staff, Ingredient, Category, MenuItem, FinanceExpense,
 const SEED_FLAG = 'seeded'
 
 /**
- * Puts any price-sheet row that is not in the database yet.
+ * Brings the stored price sheet in line with the one shipped in the app.
  *
- * Runs on every load rather than only on a first seed, so a row added to the
- * sheet reaches existing installs. Rows already stored are left alone — the
- * database wins, so a price corrected in the app is not overwritten on reload.
+ * The bundle is the source of truth: prices are edited in the code, not in the
+ * app, so a corrected price has to overwrite what a device already holds — an
+ * add-only seed would leave every existing install on the old figure forever.
+ * Rows dropped from the sheet are deleted, so a withdrawn line stops pricing
+ * things. Unchanged rows are left untouched.
  *
  * The store is local and unsynced: the sheet ships in the bundle, so every
- * device seeds the same rows without a round trip.
+ * device ends up with the same rows without a round trip.
  */
 export async function seedPriceList(): Promise<number> {
-  const have = new Set((await repo.all<PriceListItem>('priceList')).map(p => p.id))
-  const missing = PRICE_LIST.filter(p => !have.has(p.id))
-  if (missing.length) await repo.putMany('priceList', missing)
-  return missing.length
+  const stored = await repo.all<PriceListItem>('priceList')
+  const byId = new Map(stored.map(p => [p.id, p]))
+
+  const changed = PRICE_LIST.filter(p => JSON.stringify(byId.get(p.id)) !== JSON.stringify(p))
+  if (changed.length) await repo.putMany('priceList', changed)
+
+  const current = new Set(PRICE_LIST.map(p => p.id))
+  const withdrawn = stored.filter(p => !current.has(p.id))
+  for (const p of withdrawn) await repo.remove('priceList', p.id)
+
+  return changed.length + withdrawn.length
 }
 
 export async function seedIfEmpty(): Promise<void> {

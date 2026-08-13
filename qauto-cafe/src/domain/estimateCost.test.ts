@@ -21,7 +21,7 @@ describe('the price sheet itself', () => {
     expect(row('matcha-syrup')).toMatchObject({ priceQar: 80, packQty: 450, packUom: 'grams' })
     expect(row('chocolate-sauce')).toMatchObject({ priceQar: 95, packQty: 2.5, packUom: 'kg' })
     expect(row('monin-strawberry')).toMatchObject({ priceQar: 38, packQty: 700, packUom: 'mL' })
-    expect(row('sparkling-water')).toMatchObject({ priceQar: 3, packQty: 250, packUom: 'mL' })
+    expect(row('sparkling-water')).toMatchObject({ priceQar: 3, packQty: 1, packUom: 'bottle' })
   })
 
   it('every unit of measure on the sheet is one the estimator understands', () => {
@@ -92,10 +92,14 @@ describe('costing the live request', () => {
     expect(cost('Lactose Free Milk 4 ltrs')).toBe(30)
   })
 
-  // A bottle of sparkling water is not 250 mL just because the price is; the
-  // sheet does not say how big a bottle is, so neither does the estimate.
+  it('prices sparkling water by the bottle', () => {
+    expect(cost('12 bottles of sparkling water')).toBe(36)  // 12 x QAR 3.00
+  })
+
+  // Syrup is priced per 700 mL and the sheet never says how big a bottle is,
+  // so a request counted in bottles gets no figure rather than a guessed one.
   it('says nothing when the unit asked for cannot be squared with the pack', () => {
-    expect(cost('12 bottles of sparkling water')).toBeUndefined()
+    expect(cost('Monin Strawberry Syrup 2 bottles')).toBeUndefined()
   })
 })
 

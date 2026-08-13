@@ -303,10 +303,16 @@ describe('estimating what a requested item costs', () => {
     expect(field('Amount QAR').value).toBe('10.2') // 10 x QAR 1.02
   })
 
-  // The sheet prices sparkling water per 250 mL and says nothing about bottles.
-  it('leaves the amount blank when the sheet cannot say', async () => {
+  it('prices bottled water by the bottle', async () => {
     renderWith([grouped])
     await openItem(/12 bottles of sparkling water/)
+    expect(field('Amount QAR').value).toBe('36')   // 12 x QAR 3.00
+  })
+
+  // Nothing on the sheet matches, so no figure is invented.
+  it('leaves the amount blank when the sheet cannot say', async () => {
+    renderWith([{ ...grouped, id: 'r4', message: 'Audi Cafe\n\nVanilla pods 3' }])
+    await openItem(/Vanilla pods 3/)
     expect(field('Amount QAR').value).toBe('')
   })
 

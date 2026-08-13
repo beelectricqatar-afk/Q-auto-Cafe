@@ -38,7 +38,7 @@ export const PRICE_LIST: PriceListItem[] = [
   { id: 'cup-16oz', name: '16oz Cup', section: 'Plastic Cups', priceQar: 0.32, packQty: 1, packUom: 'each', match: ['Plastic Cups 16Oz', 'Plastic Cup 16OZ', '16oz Cup', '16OZ Cup'] },
 
   { id: '7up', name: '7up 150mL', section: 'Soda / Water', priceQar: 2, packQty: 1, packUom: 'each', match: ['7 Up', '7up'] },
-  { id: 'sparkling-water', name: 'Sparkling Water', section: 'Soda / Water', priceQar: 3, packQty: 250, packUom: 'mL', match: ['Al Rayyan Sparkling Water', 'Sparkling Water'] },
+  { id: 'sparkling-water', name: 'Sparkling Water', section: 'Soda / Water', priceQar: 3, packQty: 1, packUom: 'bottle', match: ['Al Rayyan Sparkling Water', 'Sparkling Water'] },
 
   { id: 'apple', name: 'Apple', section: 'Fruits / Herb', priceQar: 1.92, packQty: 1, packUom: 'each', match: ['Fresh Apple', 'Apple'] },
   { id: 'orange', name: 'Orange', section: 'Fruits / Herb', priceQar: 2.32, packQty: 1, packUom: 'each', match: ['Fresh Orange', 'Orange'] },
