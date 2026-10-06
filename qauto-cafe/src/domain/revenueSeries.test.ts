@@ -91,6 +91,38 @@ describe('revenueSeries', () => {
     expect(revenueSeries([], { from: noon(2026, 7, 5), to: noon(2026, 7, 5) }, noon(2026, 7, 5)).points).toHaveLength(1)
   })
 
+  it('stops a finished month at its last day, not the first of the next', () => {
+    // August, viewed in October: 31 days, with no "1 Sep" tacked on at zero.
+    const { points } = revenueSeries(
+      [at(noon(2026, 7, 31), 40)],
+      { from: new Date(2026, 7, 1).getTime(), to: new Date(2026, 8, 1).getTime() },
+      noon(2026, 9, 6),
+    )
+    expect(points).toHaveLength(31)
+    expect(points[30].value).toBe(40)
+  })
+
+  it('stops a finished run of months at its last month', () => {
+    const { points } = revenueSeries(
+      [],
+      { from: new Date(2026, 7, 1).getTime(), to: new Date(2026, 9, 1).getTime() },
+      noon(2026, 9, 6),
+      'month',
+    )
+    expect(points).toHaveLength(2) // Aug, Sep — no Oct
+  })
+
+  it('slices by month when asked, whatever the length', () => {
+    const { points, granularity } = revenueSeries(
+      [at(noon(2026, 7, 3), 10), at(noon(2026, 7, 20), 5), at(noon(2026, 8, 9), 7)],
+      { from: new Date(2026, 7, 1).getTime(), to: new Date(2026, 9, 1).getTime() },
+      noon(2026, 9, 6),
+      'month',
+    )
+    expect(granularity).toBe('month')
+    expect(points.map(p => p.value)).toEqual([15, 7])
+  })
+
   it('rounds money to two decimals', () => {
     const t = noon(2026, 7, 5, 9)
     const { points } = revenueSeries([at(t, 0.1), at(t + 1, 0.2)], { from: noon(2026, 7, 5, 9), to: Number.MAX_SAFE_INTEGER }, t + 2)

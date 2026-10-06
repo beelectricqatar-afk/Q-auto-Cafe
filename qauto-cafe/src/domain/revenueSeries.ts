@@ -60,17 +60,23 @@ export function revenueSeries(
   orders: Order[],
   range: { from: number; to: number },
   now: number = Date.now(),
+  /** Slice this way regardless of length — e.g. months, when months were picked. */
+  granularityOverride?: Granularity,
 ): { points: RevenuePoint[]; granularity: Granularity } {
   const inRange = orders.filter(o => o.timestamp >= range.from && o.timestamp < range.to)
   const end = Math.min(range.to, now)
+  // A finished window ends at `to`, which is exclusive: it is the first moment
+  // of the next day or month, so no slice may start there. A window still
+  // running ends at now, and the slice now falls in is shown.
+  const finished = range.to < now
   const earliest = inRange.length ? Math.min(...inRange.map(o => o.timestamp)) : end
   const start = range.from > 0 ? range.from : earliest
 
-  const granularity = granularityFor(Math.max(0, end - start))
+  const granularity = granularityOverride ?? granularityFor(Math.max(0, end - start))
   const floor = granularity === 'hour' ? startOfHour : granularity === 'day' ? startOfDay : startOfMonth
 
   const points: RevenuePoint[] = []
-  for (let t = floor(start); t <= end && points.length < MAX_POINTS; t = next(t, granularity)) {
+  for (let t = floor(start); (finished ? t < end : t <= end) && points.length < MAX_POINTS; t = next(t, granularity)) {
     points.push({ label: labelFor(t, granularity), value: 0, from: t, to: next(t, granularity) })
   }
   if (points.length === 0) return { points, granularity }

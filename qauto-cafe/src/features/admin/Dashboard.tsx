@@ -21,7 +21,12 @@ export function Dashboard({ data }: { data: Data }) {
   const inRange = useMemo(() => ordersInRange(orders, range.from, range.to), [orders, range])
   const walkinRevenue = useMemo(() => revenue(inRange.filter(o => o.walkin)), [inRange])
   const deptRevenue = useMemo(() => revenue(inRange.filter(o => !o.walkin)), [inRange])
-  const series = useMemo(() => revenueSeries(orders, range).points, [orders, range])
+  // Months picked, months shown: a run of two or more reads one point per month.
+  const pickedMonths = selection.mode === 'pickMonth' && (selection.toMonthKey ?? selection.monthKey) !== selection.monthKey
+  const series = useMemo(
+    () => revenueSeries(orders, range, undefined, pickedMonths ? 'month' : undefined).points,
+    [orders, range, pickedMonths],
+  )
   const items = useMemo(() => topItems(inRange), [inRange])
   const depts = useMemo(() => topDepartments(inRange, data.departments), [inRange, data.departments])
   const low = data.ingredients.filter(i => i.stockQty <= i.lowStockThreshold)
