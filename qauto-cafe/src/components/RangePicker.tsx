@@ -1,5 +1,6 @@
 import { PERIOD_LABELS } from '../domain/dateRanges'
 import { isPreset, PRESETS, type RangeMode, type RangeSelection } from '../domain/rangeSelection'
+import { MonthRangePicker } from './MonthRangePicker'
 
 const input = { padding: 8, borderRadius: 8, border: '1px solid var(--line)', fontSize: 14 } as const
 
@@ -12,7 +13,7 @@ const chip = (active: boolean) => ({
 
 /**
  * The named periods, plus a Custom option that reveals the month and day
- * pickers. Shared by the Dashboard and Finance so the two cannot drift apart.
+ * pickers. Month picks one month or a run of them.
  */
 export function RangePicker({ value, onChange }: { value: RangeSelection; onChange: (s: RangeSelection) => void }) {
   const custom = !isPreset(value.mode)
@@ -42,7 +43,7 @@ export function RangePicker({ value, onChange }: { value: RangeSelection; onChan
             ))}
           </div>
           {value.mode === 'pickMonth'
-            ? <input type="month" value={value.monthKey} onChange={e => set({ monthKey: e.target.value })} style={input} aria-label="Month" />
+            ? <MonthRangePicker from={value.monthKey} to={value.toMonthKey ?? value.monthKey} onChange={(from, to) => set({ monthKey: from, toMonthKey: to })} />
             : (
               <>
                 <input type="date" value={value.fromDay} onChange={e => set({ fromDay: e.target.value })} style={input} aria-label="From date" />

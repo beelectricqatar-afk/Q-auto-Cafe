@@ -22,6 +22,8 @@ const MUTED = '#999'
 const GRID = '#f2f2f2'
 const LINE = '#999999'
 const FILL = '#465fff'
+/** Dots are drawn while there are this many points or fewer — one month day by day. */
+const MAX_DOTS = 31
 
 /** Axis money with separators, as the design shows ("1,000" not "1k"). */
 const tickLabel = (v: number) => Math.round(v).toLocaleString()
@@ -125,6 +127,12 @@ export function RevenueChart({ points, rangeLabel }: { points: RevenuePoint[]; r
 
               <path d={area} fill="url(#revenue-fill)" opacity={0.1} />
               <path d={line} fill="none" stroke={LINE} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
+
+              {/* A dot on each point marks where the readings are. Past a month of
+                  columns they would crowd into a solid band, so they drop out. */}
+              {points.length <= MAX_DOTS && coords.map((c, i) => (
+                <circle key={`dot-${points[i].from}`} cx={c.x} cy={c.y} r={3.5} fill={INK} data-testid="revenue-dot" />
+              ))}
 
               {/* Crosshair for the slice under the pointer. */}
               {active && (

@@ -34,6 +34,20 @@ describe('RevenueChart', () => {
     for (const p of series) expect(within(svg).getByText(p.label)).toBeInTheDocument()
   })
 
+  it('marks each reading with a dot while there are a month of points or fewer', () => {
+    show()
+    expect(screen.getAllByTestId('revenue-dot')).toHaveLength(series.length)
+    const month = Array.from({ length: 31 }, (_, i) => pt(`${i + 1} Oct`, i * 10, 100 + i))
+    show(month)
+    expect(screen.getAllByTestId('revenue-dot')).toHaveLength(31)
+  })
+
+  it('drops the dots once they would crowd together', () => {
+    const many = Array.from({ length: 32 }, (_, i) => pt(`d${i}`, i * 10, 100 + i))
+    show(many)
+    expect(screen.queryAllByTestId('revenue-dot')).toHaveLength(0)
+  })
+
   it('says so when nothing was sold', () => {
     show([])
     expect(screen.getByText('No orders in this period.')).toBeInTheDocument()

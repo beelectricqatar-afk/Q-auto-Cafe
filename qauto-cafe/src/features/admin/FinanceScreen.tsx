@@ -5,10 +5,11 @@ import type { DeletionLog, FinanceExpense, FinanceReceipt, FinanceWastage, Order
 import { useToast } from '../../components/Toast'
 import { exportXlsx } from '../../domain/xlsx'
 import { formatQar } from '../../domain/money'
-import { buildFinanceSummary, currentMonthKey, dayRange, makeWastage, monthRange, profitSplit, todayKey } from '../../domain/finance'
+import { buildFinanceSummary, currentMonthKey, dayRange, makeWastage, monthSpanRange, profitSplit, todayKey } from '../../domain/finance'
 import { exportBusinessSummaryPdf, exportDetailedSales, exportExpenses } from '../../domain/financeExports'
 import { Card } from '../../components/Card'
 import { MetricCard } from '../../components/MetricCard'
+import { MonthRangePicker } from '../../components/MonthRangePicker'
 import { DollarIcon, PercentIcon, InventoryIcon, TrashIcon, WalletIcon, TrendUpIcon } from './sidebarIcons'
 
 const input = { padding: 10, borderRadius: 8, border: '1px solid var(--line)', fontSize: 15 } as const
@@ -40,9 +41,10 @@ export function FinanceScreen({ data }: { data: Data }) {
   const [receipts, setReceipts] = useState<FinanceReceipt[]>([])
   const [wastages, setWastages] = useState<FinanceWastage[]>([])
   const [deletionLogs, setDeletionLogs] = useState<DeletionLog[]>([])
-  // Report either a whole month or an explicit run of days.
+  // Report whole months (one or a run of them) or an explicit run of days.
   const [rangeMode, setRangeMode] = useState<'month' | 'days'>('month')
   const [monthKey, setMonthKey] = useState(currentMonthKey())
+  const [toMonthKey, setToMonthKey] = useState(currentMonthKey())
   const [fromDay, setFromDay] = useState(todayKey())
   const [toDay, setToDay] = useState(todayKey())
   const [wastageForm, setWastageForm] = useState(wastageDefaults)
@@ -68,8 +70,8 @@ export function FinanceScreen({ data }: { data: Data }) {
   }, [load])
 
   const range = useMemo(
-    () => rangeMode === 'month' ? monthRange(monthKey) : dayRange(fromDay, toDay),
-    [rangeMode, monthKey, fromDay, toDay],
+    () => rangeMode === 'month' ? monthSpanRange(monthKey, toMonthKey) : dayRange(fromDay, toDay),
+    [rangeMode, monthKey, toMonthKey, fromDay, toDay],
   )
 
   const summary = useMemo(() => buildFinanceSummary({
@@ -193,7 +195,7 @@ export function FinanceScreen({ data }: { data: Data }) {
             ))}
           </div>
           {rangeMode === 'month'
-            ? <input type="month" value={monthKey} onChange={e => setMonthKey(e.target.value)} style={input} />
+            ? <MonthRangePicker from={monthKey} to={toMonthKey} onChange={(from, to) => { setMonthKey(from); setToMonthKey(to) }} />
             : (
               <>
                 <input type="date" value={fromDay} onChange={e => setFromDay(e.target.value)} style={input} aria-label="From date" />
