@@ -10,6 +10,7 @@ const LONG = Array.from({ length: 12 }, (_, m) => new Date(2000, m, 1).toLocaleS
 
 const RANGE = '#ededed'
 const INK = '#1a1a1a'
+const POPUP_WIDTH = 340
 
 /**
  * One month or a run of months, picked from a year grid.
@@ -30,6 +31,9 @@ export function MonthRangePicker({ from, to, onChange, now = new Date() }: {
   const [anchor, setAnchor] = useState<string | null>(null)
   const [hover, setHover] = useState<string | null>(null)
   const [year, setYear] = useState(() => yearOf(to))
+  // Which edge of the button the grid lines up with: it opens towards the side
+  // with room, so it is never tucked behind the sidebar or off the screen.
+  const [openRight, setOpenRight] = useState(true)
   const boxRef = useRef<HTMLDivElement>(null)
   const triggerRef = useRef<HTMLButtonElement>(null)
   const latest = currentMonthKey(now)
@@ -93,7 +97,13 @@ export function MonthRangePicker({ from, to, onChange, now = new Date() }: {
         aria-label={`Month, ${label}`}
         aria-haspopup="dialog"
         aria-expanded={open}
-        onClick={() => { if (open) { close() } else { setYear(yearOf(to)); setOpen(true) } }}
+        onClick={() => {
+          if (open) { close(); return }
+          const left = triggerRef.current?.getBoundingClientRect().left ?? 0
+          setOpenRight(left + POPUP_WIDTH <= window.innerWidth - 16)
+          setYear(yearOf(to))
+          setOpen(true)
+        }}
         style={{
           display: 'inline-flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, minWidth: 190,
           padding: 8, borderRadius: 8, border: `1px solid ${open ? INK : 'var(--line)'}`, background: '#fff',
@@ -112,7 +122,7 @@ export function MonthRangePicker({ from, to, onChange, now = new Date() }: {
           role="dialog"
           aria-label="Choose a month or a run of months"
           style={{
-            position: 'absolute', right: 0, top: 'calc(100% + 8px)', width: 340, maxWidth: 'calc(100vw - 32px)', zIndex: 20,
+            position: 'absolute', ...(openRight ? { left: 0 } : { right: 0 }), top: 'calc(100% + 8px)', width: POPUP_WIDTH, maxWidth: 'calc(100vw - 32px)', zIndex: 20,
             background: '#fff', border: '1px solid #e5e5e5', borderRadius: 14, boxShadow: '0 10px 30px rgba(16,24,40,.14)', padding: 14,
           }}
         >
