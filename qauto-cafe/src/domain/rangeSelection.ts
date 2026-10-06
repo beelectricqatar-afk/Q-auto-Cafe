@@ -1,4 +1,4 @@
-import { dayRange, monthRange, currentMonthKey, todayKey, type FinanceRange } from './finance'
+import { dayRange, monthSpanRange, currentMonthKey, todayKey, type FinanceRange } from './finance'
 import { periodRange, PERIOD_LABELS, type PeriodKey } from './dateRanges'
 
 /**
@@ -14,8 +14,10 @@ export type RangeMode = PeriodKey | 'pickMonth' | 'pickDays'
 
 export interface RangeSelection {
   mode: RangeMode
-  /** `YYYY-MM`, used when mode is `pickMonth`. */
+  /** `YYYY-MM`, the first month when mode is `pickMonth`. */
   monthKey: string
+  /** `YYYY-MM`, the last month of a run; absent or equal to `monthKey` means one month. */
+  toMonthKey?: string
   /** `YYYY-MM-DD`, used when mode is `pickDays`. */
   fromDay: string
   toDay: string
@@ -30,7 +32,7 @@ export function defaultSelection(mode: RangeMode = 'today'): RangeSelection {
 
 /** The window a selection resolves to, whichever way it was chosen. */
 export function selectionRange(s: RangeSelection): FinanceRange {
-  if (s.mode === 'pickMonth') return monthRange(s.monthKey)
+  if (s.mode === 'pickMonth') return monthSpanRange(s.monthKey, s.toMonthKey ?? s.monthKey)
   if (s.mode === 'pickDays') return dayRange(s.fromDay, s.toDay)
   const p = periodRange(s.mode)
   return { key: p.key, label: p.label, from: p.from, to: p.to }

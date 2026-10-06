@@ -60,6 +60,35 @@ export function monthRange(monthKey: string): FinanceRange {
   return { key: monthKey, label, from: fromDate.getTime(), to: toDate.getTime() }
 }
 
+const shortMonth = (monthKey: string) => {
+  const [year, month] = monthKey.split('-').map(Number)
+  return new Date(year, month - 1, 1).toLocaleString(undefined, { month: 'short' })
+}
+
+/**
+ * How a run of whole months reads: "October 2026" for one, "Aug – Oct 2026"
+ * within a year, "Nov 2025 – Feb 2026" across one. Reversed keys are swapped.
+ */
+export function monthSpanLabel(fromKey: string, toKey: string): string {
+  const [a, b] = fromKey <= toKey ? [fromKey, toKey] : [toKey, fromKey]
+  if (a === b) return monthRange(a).label
+  const [ya, yb] = [a.slice(0, 4), b.slice(0, 4)]
+  return ya === yb
+    ? `${shortMonth(a)} – ${shortMonth(b)} ${yb}`
+    : `${shortMonth(a)} ${ya} – ${shortMonth(b)} ${yb}`
+}
+
+/**
+ * A window covering whole months from `fromKey` to `toKey` inclusive (both
+ * `YYYY-MM`). One month is exactly `monthRange`, so picking a single month
+ * reports the same window and label it always has.
+ */
+export function monthSpanRange(fromKey: string, toKey: string): FinanceRange {
+  const [a, b] = fromKey <= toKey ? [fromKey, toKey] : [toKey, fromKey]
+  if (a === b) return monthRange(a)
+  return { key: `${a}_${b}`, label: monthSpanLabel(a, b), from: monthRange(a).from, to: monthRange(b).to }
+}
+
 export function currentMonthKey(now = new Date()): string {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
 }

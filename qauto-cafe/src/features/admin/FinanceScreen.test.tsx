@@ -34,7 +34,7 @@ describe('FinanceScreen date range', () => {
   it('renders the current month by default', async () => {
     render(<FinanceScreen data={data} />)
     expect(screen.getByRole('heading', { name: 'Finance' })).toBeInTheDocument()
-    await waitFor(() => expect(screen.getByText(monthRange(currentMonthKey()).label)).toBeInTheDocument())
+    await waitFor(() => expect(screen.getAllByText(monthRange(currentMonthKey()).label)[0]).toBeInTheDocument())
     // Both orders fall in this month (unless today is the 1st, handled below).
     expect(screen.getByRole('button', { name: 'Month' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Days' })).toBeInTheDocument()
@@ -43,7 +43,7 @@ describe('FinanceScreen date range', () => {
   it('swaps the month picker for two date pickers in Days mode', async () => {
     const user = userEvent.setup()
     render(<FinanceScreen data={data} />)
-    await waitFor(() => expect(screen.getByText(monthRange(currentMonthKey()).label)).toBeInTheDocument())
+    await waitFor(() => expect(screen.getAllByText(monthRange(currentMonthKey()).label)[0]).toBeInTheDocument())
 
     await user.click(screen.getByRole('button', { name: 'Days' }))
     expect(screen.getByLabelText('From date')).toBeInTheDocument()
@@ -55,7 +55,7 @@ describe('FinanceScreen date range', () => {
   it('narrows the report to the selected day', async () => {
     const user = userEvent.setup()
     render(<FinanceScreen data={data} />)
-    await waitFor(() => expect(screen.getByText(monthRange(currentMonthKey()).label)).toBeInTheDocument())
+    await waitFor(() => expect(screen.getAllByText(monthRange(currentMonthKey()).label)[0]).toBeInTheDocument())
 
     await user.click(screen.getByRole('button', { name: 'Days' }))
     // Today only: the 25 order counts, the 40 from yesterday does not.
@@ -67,11 +67,11 @@ describe('FinanceScreen date range', () => {
     const user = userEvent.setup()
     render(<FinanceScreen data={data} />)
     await user.click(screen.getByRole('button', { name: 'Days' }))
-    expect(screen.queryByDisplayValue(currentMonthKey())).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^Month,/ })).not.toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: 'Month' }))
-    expect(screen.getByDisplayValue(currentMonthKey())).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /^Month,/ })).toBeInTheDocument()
     expect(screen.queryByLabelText('From date')).not.toBeInTheDocument()
-    await waitFor(() => expect(screen.getByText(monthRange(currentMonthKey()).label)).toBeInTheDocument())
+    await waitFor(() => expect(screen.getAllByText(monthRange(currentMonthKey()).label)[0]).toBeInTheDocument())
   })
 })
