@@ -1,5 +1,7 @@
 import type { Ingredient, RecipeLine } from '../db/schema'
 import { subDivision } from '../domain/deduction'
+import { Button } from './ui/button'
+import { Input, Select } from './ui/input'
 
 // The ingredient rows shared by the admin recipe modal and the barista's
 // per-order tailoring, so both show the same thing. The confirm button belongs
@@ -13,9 +15,9 @@ export function RecipeEditor({ ingredients, recipe, onChange }: {
     onChange(recipe.map((r, i) => i === idx ? { ...r, ...patch } : r))
 
   return (
-    <div style={{ display: 'grid', gap: 8 }}>
+    <div className="grid gap-2 font-sans">
       {recipe.length === 0 && (
-        <div style={{ color: 'var(--muted)' }}>No ingredients — nothing will be deducted from stock.</div>
+        <div className="text-sm text-muted-foreground">No ingredients — nothing will be deducted from stock.</div>
       )}
       {recipe.map((r, idx) => {
         // A sub-divided ingredient is measured in its sub-unit here (4 lemon
@@ -23,39 +25,36 @@ export function RecipeEditor({ ingredients, recipe, onChange }: {
         const ing = ingredients.find(i => i.id === r.ingredientId)
         const qtyUnit = ing ? subDivision(ing).unit : ''
         return (
-          <div key={idx} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <select
+          <div key={idx} className="flex items-center gap-2">
+            <Select
               value={r.ingredientId}
               onChange={e => setRow(idx, { ingredientId: e.target.value })}
               aria-label={`Ingredient ${idx + 1}`}
-              style={{ flex: 1, padding: 8, borderRadius: 8, border: '1px solid var(--line)' }}
+              className="flex-1"
             >
               {ingredients.map(i => <option key={i.id} value={i.id}>{i.name} ({subDivision(i).unit})</option>)}
-            </select>
-            <input
+            </Select>
+            <Input
               type="number"
               value={r.qty}
               onChange={e => setRow(idx, { qty: Number(e.target.value) })}
               aria-label={`Quantity ${idx + 1}`}
-              style={{ width: 90, padding: 8, borderRadius: 8, border: '1px solid var(--line)' }}
+              className="w-24"
             />
-            <span style={{ width: 52, color: 'var(--muted)', fontSize: 13 }}>{qtyUnit}</span>
+            <span className="w-13 text-xs text-muted-foreground">{qtyUnit}</span>
             <button
               onClick={() => onChange(recipe.filter((_, i) => i !== idx))}
               aria-label={`Remove ingredient ${idx + 1}`}
-              style={{ border: '1px solid var(--danger)', color: 'var(--danger)', borderRadius: 8, padding: '6px 10px', background: '#fff' }}
+              className="icon-btn danger"
             >
               ×
             </button>
           </div>
         )
       })}
-      <button
-        onClick={() => onChange([...recipe, { ingredientId: ingredients[0]?.id ?? '', qty: 0 }])}
-        style={{ border: '1px solid var(--line)', borderRadius: 8, padding: 10, background: '#fff' }}
-      >
+      <Button variant="outline" onClick={() => onChange([...recipe, { ingredientId: ingredients[0]?.id ?? '', qty: 0 }])}>
         + Add ingredient
-      </button>
+      </Button>
     </div>
   )
 }

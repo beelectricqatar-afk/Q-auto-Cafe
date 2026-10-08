@@ -1,4 +1,4 @@
-import { useState, type CSSProperties } from 'react'
+import { useState } from 'react'
 import type { Branch, Ingredient, Request, RequestLine } from '../../db/schema'
 import { Card } from '../../components/Card'
 import { ItemPicker } from '../../components/ItemPicker'
@@ -6,10 +6,9 @@ import { useToast } from '../../components/Toast'
 import { BULK_UNIT } from '../../domain/purchase'
 import { CAFES, CAFE_LABEL, requestMessage } from '../../domain/shoppingList'
 import { TrashIcon } from './sidebarIcons'
-
-const INK = '#1A1A1A'
-const input: CSSProperties = { padding: 10, borderRadius: 8, border: '1px solid var(--line)', fontSize: 16, background: '#fff', color: 'var(--ink)' }
-const bad = (on: boolean): CSSProperties => (on ? { borderColor: 'var(--danger)', boxShadow: '0 0 0 1px var(--danger)' } : {})
+import { Button } from '../../components/ui/button'
+import { Input, Select } from '../../components/ui/input'
+import { ToggleGroup } from '../../components/ui/toggle-group'
 
 interface DraftLine {
   key: string
@@ -88,25 +87,24 @@ export function RequestForm({ ingredients, onSend }: { ingredients: Ingredient[]
 
   return (
     <Card title="Send a request to the admin" style={{ overflow: 'visible' }}>
-      <div style={{ display: 'grid', gap: 14 }}>
-        <input value={from} onChange={e => setFrom(e.target.value)} placeholder="Your name (optional)" style={input} />
+      <div className="grid gap-4">
+        <Input value={from} onChange={e => setFrom(e.target.value)} placeholder="Your name (optional)" />
 
         {sections.map(section => (
-          <div key={section.key} style={{ border: '1px solid #e5e5e5', borderRadius: 12, padding: 12, display: 'grid', gap: 10 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-              <select
+          <div key={section.key} className="grid gap-3 rounded-control border border-border p-3">
+            <div className="flex items-center justify-between gap-2">
+              <Select
                 value={section.branch}
                 onChange={e => updateSection(section.key, s => ({ ...s, branch: e.target.value as Branch }))}
                 aria-label="Cafe"
-                style={{ ...input, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.4, fontSize: 14 }}
+                className="w-auto text-sm font-semibold tracking-wide uppercase"
               >
                 {CAFES.filter(c => c === section.branch || !used.has(c)).map(c => <option key={c} value={c}>{CAFE_LABEL[c]}</option>)}
-              </select>
+              </Select>
               {sections.length > 1 && (
-                <button type="button" onClick={() => setSections(ss => ss.filter(s => s.key !== section.key))}
-                  style={{ border: 'none', background: 'none', color: 'var(--muted)', fontWeight: 700, minHeight: 32 }}>
+                <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={() => setSections(ss => ss.filter(s => s.key !== section.key))}>
                   Remove {CAFE_LABEL[section.branch]}
-                </button>
+                </Button>
               )}
             </div>
 
@@ -114,28 +112,27 @@ export function RequestForm({ ingredients, onSend }: { ingredients: Ingredient[]
               const bulk = l.ingredient && BULK_UNIT[l.ingredient.unit]
               const err = tried && missingQty(l)
               return (
-                <div key={l.key} style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                  <div style={{ flex: '1 1 140px', minWidth: 0 }}>
-                    <div style={{ fontWeight: 700 }}>{l.name}</div>
-                    <div style={{ color: 'var(--muted)', fontSize: 13 }}>{l.ingredient ? `${l.ingredient.stockQty} ${l.ingredient.unit} in stock` : 'not a stock item'}</div>
+                <div key={l.key} className="flex flex-wrap items-center gap-2">
+                  <div className="min-w-0 flex-[1_1_140px]">
+                    <div className="font-semibold">{l.name}</div>
+                    <div className="text-xs text-muted-foreground">{l.ingredient ? `${l.ingredient.stockQty} ${l.ingredient.unit} in stock` : 'not a stock item'}</div>
                   </div>
-                  <input type="number" min="0" step="any" inputMode="decimal" value={l.qty}
+                  <Input type="number" min="0" step="any" inputMode="decimal" value={l.qty}
                     onChange={e => updateLine(section.key, l.key, { qty: e.target.value })}
                     aria-label={`How many ${l.name} for ${CAFE_LABEL[section.branch]}`} aria-invalid={err}
-                    style={{ ...input, ...bad(err), width: 90 }} />
+                    className="w-24" />
                   {bulk && l.ingredient
-                    ? <div role="group" aria-label={`Unit for ${l.name}`} style={{ display: 'flex', border: '1px solid var(--line)', borderRadius: 8, overflow: 'hidden' }}>
-                        {[true, false].map(b => (
-                          <button key={String(b)} type="button" aria-pressed={l.bulk === b} onClick={() => updateLine(section.key, l.key, { bulk: b })}
-                            style={{ border: 'none', padding: '0 10px', minHeight: 42, fontWeight: 700, background: l.bulk === b ? INK : '#fff', color: l.bulk === b ? '#fff' : 'var(--ink)' }}>
-                            {b ? bulk.unit : l.ingredient!.unit}
-                          </button>
-                        ))}
-                      </div>
+                    ? <ToggleGroup
+                        size="sm"
+                        label={`Unit for ${l.name}`}
+                        value={l.bulk ? 'bulk' : 'stock'}
+                        onChange={v => updateLine(section.key, l.key, { bulk: v === 'bulk' })}
+                        options={[{ value: 'bulk', label: bulk.unit }, { value: 'stock', label: l.ingredient.unit }]}
+                      />
                     : l.ingredient
-                      ? <span style={{ color: 'var(--muted)', fontWeight: 600, minWidth: 34 }}>{l.ingredient.unit}</span>
-                      : <input value={l.unitLabel} onChange={e => updateLine(section.key, l.key, { unitLabel: e.target.value })} placeholder="unit"
-                          aria-label={`Unit for ${l.name}`} style={{ ...input, width: 80 }} />}
+                      ? <span className="min-w-8 text-sm font-semibold text-muted-foreground">{l.ingredient.unit}</span>
+                      : <Input value={l.unitLabel} onChange={e => updateLine(section.key, l.key, { unitLabel: e.target.value })} placeholder="unit"
+                          aria-label={`Unit for ${l.name}`} className="w-20" />}
                   <button type="button" className="icon-btn danger" aria-label={`Remove ${l.name} from ${CAFE_LABEL[section.branch]}`}
                     onClick={() => updateSection(section.key, s => ({ ...s, lines: s.lines.filter(x => x.key !== l.key) }))}><TrashIcon /></button>
                 </div>
@@ -153,16 +150,15 @@ export function RequestForm({ ingredients, onSend }: { ingredients: Ingredient[]
         ))}
 
         {free.length > 0 && (
-          <button type="button" onClick={() => setSections(ss => [...ss, newSection(free[0])])}
-            style={{ justifySelf: 'start', border: '1px solid #e5e5e5', background: '#fff', borderRadius: 8, padding: '8px 14px', fontWeight: 700 }}>
+          <Button variant="outline" size="sm" className="justify-self-start" onClick={() => setSections(ss => [...ss, newSection(free[0])])}>
             + Add {CAFE_LABEL[free[0]]}
-          </button>
+          </Button>
         )}
 
-        {tried && problem && <div role="alert" style={{ color: 'var(--danger)', fontSize: 14, fontWeight: 600 }}>{problem}</div>}
-        <button onClick={send} disabled={sending} style={{ background: INK, color: '#fff', border: 'none', borderRadius: 10, padding: 14, fontWeight: 800, fontSize: 16, opacity: sending ? 0.7 : 1 }}>
+        {tried && problem && <div role="alert" className="text-sm font-semibold text-destructive">{problem}</div>}
+        <Button size="lg" onClick={send} disabled={sending}>
           {sending ? 'Sending…' : 'Send request'}
-        </button>
+        </Button>
       </div>
     </Card>
   )

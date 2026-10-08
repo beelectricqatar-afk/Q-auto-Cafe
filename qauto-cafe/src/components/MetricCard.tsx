@@ -1,4 +1,5 @@
 import type { ComponentType, CSSProperties } from 'react'
+import { cn } from '../lib/utils'
 
 export function MetricCard({ icon: Icon, label, value, tone = 'normal', valueSize = 30, breakdown, style }: {
   icon: ComponentType<{ className?: string }>
@@ -10,21 +11,21 @@ export function MetricCard({ icon: Icon, label, value, tone = 'normal', valueSiz
   breakdown?: { label: string; value: string }[]
   style?: CSSProperties
 }) {
-  const color = tone === 'good' ? '#106b43' : tone === 'bad' ? '#d92d20' : '#1a1a1a'
+  const color = tone === 'good' ? 'text-success' : tone === 'bad' ? 'text-destructive' : 'text-foreground'
   return (
-    <div className="card-hoverable" style={{ background: '#fff', border: '1px solid #e5e5e5', borderRadius: 16, padding: 24, display: 'flex', flexDirection: 'column', gap: 20, height: '100%', ...style }}>
-      <div style={{ background: '#f2f2f2', borderRadius: 12, width: 48, height: 48, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#1a1a1a' }}>
+    <div className="card-hoverable flex h-full flex-col gap-5 rounded-card bg-card p-7 font-sans shadow-card" style={style}>
+      <div className="flex size-12 items-center justify-center rounded-control bg-muted text-foreground">
         <Icon className="metric-card-icon" />
       </div>
       <div>
-        <div style={{ fontSize: 14, color: '#999' }}>{label}</div>
-        <div style={{ fontSize: valueSize, fontWeight: 700, lineHeight: `${valueSize + 8}px`, color }}>{value}</div>
+        <div className="text-sm text-muted-foreground">{label}</div>
+        <div className={cn('font-semibold tabular-nums', color)} style={{ fontSize: valueSize, lineHeight: `${valueSize + 8}px` }}>{value}</div>
         {breakdown && breakdown.length > 0 && (
-          <div style={{ display: 'grid', gap: 6, fontSize: 14, marginTop: 8 }}>
+          <div className="mt-2 grid gap-1.5 text-sm">
             {breakdown.map(b => (
-              <div key={b.label} style={{ display: 'flex', justifyContent: 'space-between', gap: 16 }}>
-                <span style={{ color: '#999' }}>{b.label}</span>
-                <strong style={{ whiteSpace: 'nowrap', color }}>{b.value}</strong>
+              <div key={b.label} className="flex justify-between gap-4">
+                <span className="text-muted-foreground">{b.label}</span>
+                <strong className={cn('font-semibold whitespace-nowrap', color)}>{b.value}</strong>
               </div>
             ))}
           </div>

@@ -6,6 +6,9 @@ import { aggregateBilling } from '../../domain/billing'
 import { formatQar } from '../../domain/money'
 import { exportXlsx } from '../../domain/xlsx'
 import { periodRange, PERIOD_LABELS, type PeriodKey } from '../../domain/dateRanges'
+import { Button } from '../../components/ui/button'
+import { Input } from '../../components/ui/input'
+import { ToggleGroup } from '../../components/ui/toggle-group'
 
 const round2 = (n: number) => Math.round(n * 100) / 100
 const STMT_COLS = [
@@ -63,39 +66,37 @@ export function BillingScreen({ data }: { data: Data }) {
       walkinInRange.filter(o => (o.customerName?.trim() || '(no name)') === name))
 
   return (
-    <div style={{ display: 'grid', gap: 12 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
-        <h2 style={{ margin: 0 }}>Billing</h2>
-        <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-          <input value={person} onChange={e => setPerson(e.target.value)} placeholder="Search person or walk-in…" style={{ padding: 8, borderRadius: 8, border: '1px solid var(--line)', minWidth: 200 }} />
-          <div style={{ display: 'flex', gap: 6 }}>
-            {(Object.keys(PERIOD_LABELS) as PeriodKey[]).map(k => (
-              <button key={k} onClick={() => setPeriod(k)} style={{ padding: '8px 14px', borderRadius: 8, fontWeight: 700,
-                border: period === k ? 'none' : '1px solid var(--line)', background: period === k ? '#1A1A1A' : '#fff', color: period === k ? '#fff' : 'var(--ink)' }}>
-                {PERIOD_LABELS[k]}
-              </button>
-            ))}
-          </div>
-          <strong>Total: {formatQar(round2(deptTotal + walkinTotal))}</strong>
-          <button onClick={() => exportStatement(`billing-${period}.xlsx`, `Departments ${formatQar(deptTotal)} · Walk-in ${formatQar(walkinTotal)}`, [...orders].filter(o => o.timestamp >= range.from && o.timestamp < range.to))} style={{ background: '#1A1A1A', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px', fontWeight: 700 }}>Export Excel</button>
+    <div className="grid gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 className="m-0 text-2xl font-medium">Billing</h2>
+        <div className="flex flex-wrap items-center gap-3">
+          <Input value={person} onChange={e => setPerson(e.target.value)} placeholder="Search person or walk-in…" className="w-60" />
+          <ToggleGroup
+            label="Period"
+            value={period}
+            onChange={setPeriod}
+            options={(Object.keys(PERIOD_LABELS) as PeriodKey[]).map(k => ({ value: k, label: PERIOD_LABELS[k] }))}
+          />
+          <strong className="font-semibold tabular-nums">Total: {formatQar(round2(deptTotal + walkinTotal))}</strong>
+          <Button onClick={() => exportStatement(`billing-${period}.xlsx`, `Departments ${formatQar(deptTotal)} · Walk-in ${formatQar(walkinTotal)}`, [...orders].filter(o => o.timestamp >= range.from && o.timestamp < range.to))}>Export Excel</Button>
         </div>
       </div>
 
       {/* Departments */}
-      <div style={{ color: 'var(--muted)', fontWeight: 700 }}>Departments — {formatQar(deptTotal)}</div>
-      {shownDepts.length === 0 && <div style={{ color: 'var(--muted)' }}>No matching department orders.</div>}
+      <div className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">Departments — {formatQar(deptTotal)}</div>
+      {shownDepts.length === 0 && <div className="text-sm text-muted-foreground">No matching department orders.</div>}
       {shownDepts.map(d => (
-        <details key={d.departmentId ?? 'none'} open={!!q} style={{ background: '#fff', borderRadius: 'var(--radius)', padding: 14, border: '1px solid var(--line)' }}>
-          <summary style={{ cursor: 'pointer', fontWeight: 700, display: 'flex', justifyContent: 'space-between' }}>
-            <span>{deptName(d.departmentId)} · {d.orderCount} order(s)</span><span>{formatQar(d.total)}</span>
+        <details key={d.departmentId ?? 'none'} open={!!q} className="rounded-card bg-card px-7 py-5 shadow-card">
+          <summary className="flex cursor-pointer justify-between gap-3 font-semibold">
+            <span>{deptName(d.departmentId)} · {d.orderCount} order(s)</span><span className="tabular-nums">{formatQar(d.total)}</span>
           </summary>
-          <div style={{ marginTop: 10, display: 'grid', gap: 6 }}>
+          <div className="mt-3 grid gap-2">
             {d.byPerson.map(p => (
-              <div key={p.staffId ?? 'w'} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-                <span style={{ color: 'var(--muted)' }}>{staffName(p.staffId)} ({p.orderCount})</span>
-                <span style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-                  <span>{formatQar(p.total)}</span>
-                  <button onClick={() => staffStatement(d.departmentId, p.staffId, staffName(p.staffId))} style={{ border: '1px solid var(--line)', background: '#fff', borderRadius: 8, padding: '4px 10px', fontWeight: 700, fontSize: 13 }}>Statement</button>
+              <div key={p.staffId ?? 'w'} className="flex items-center justify-between gap-2 text-sm">
+                <span className="text-muted-foreground">{staffName(p.staffId)} ({p.orderCount})</span>
+                <span className="flex items-center gap-2.5">
+                  <span className="tabular-nums">{formatQar(p.total)}</span>
+                  <Button variant="outline" size="sm" className="h-8 px-3 text-xs" onClick={() => staffStatement(d.departmentId, p.staffId, staffName(p.staffId))}>Statement</Button>
                 </span>
               </div>
             ))}
@@ -104,15 +105,15 @@ export function BillingScreen({ data }: { data: Data }) {
       ))}
 
       {/* Walk-in customers */}
-      <div style={{ color: 'var(--muted)', fontWeight: 700, marginTop: 6 }}>Walk-in customers — {formatQar(walkinTotal)}</div>
-      <div style={{ background: '#fff', borderRadius: 'var(--radius)', padding: 14, border: '1px solid var(--line)', display: 'grid', gap: 6 }}>
-        {walkinGroups.length === 0 && <span style={{ color: 'var(--muted)' }}>No matching walk-in orders.</span>}
+      <div className="mt-1 text-xs font-semibold tracking-wider text-muted-foreground uppercase">Walk-in customers — {formatQar(walkinTotal)}</div>
+      <div className="grid rounded-card bg-card shadow-card">
+        {walkinGroups.length === 0 && <span className="card-row text-muted-foreground">No matching walk-in orders.</span>}
         {walkinGroups.map(g => (
-          <div key={g.name} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, borderBottom: '1px solid var(--line)', paddingBottom: 6 }}>
-            <span style={{ fontWeight: 600 }}>{g.name} <span style={{ color: 'var(--muted)', fontWeight: 400 }}>({g.orderCount})</span></span>
-            <span style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-              <span>{formatQar(g.total)}</span>
-              <button onClick={() => walkinStatement(g.name)} style={{ border: '1px solid var(--line)', background: '#fff', borderRadius: 8, padding: '4px 10px', fontWeight: 700, fontSize: 13 }}>Statement</button>
+          <div key={g.name} className="card-row flex items-center justify-between gap-2 text-sm">
+            <span className="font-semibold">{g.name} <span className="font-normal text-muted-foreground">({g.orderCount})</span></span>
+            <span className="flex items-center gap-2.5">
+              <span className="tabular-nums">{formatQar(g.total)}</span>
+              <Button variant="outline" size="sm" className="h-8 px-3 text-xs" onClick={() => walkinStatement(g.name)}>Statement</Button>
             </span>
           </div>
         ))}

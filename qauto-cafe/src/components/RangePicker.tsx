@@ -1,15 +1,8 @@
 import { PERIOD_LABELS } from '../domain/dateRanges'
 import { isPreset, PRESETS, type RangeMode, type RangeSelection } from '../domain/rangeSelection'
 import { MonthRangePicker } from './MonthRangePicker'
-
-const input = { padding: 8, borderRadius: 8, border: '1px solid var(--line)', fontSize: 14 } as const
-
-const chip = (active: boolean) => ({
-  padding: '8px 14px', borderRadius: 8, fontWeight: 700, cursor: 'pointer',
-  border: active ? 'none' : '1px solid var(--line)',
-  background: active ? '#1A1A1A' : '#fff',
-  color: active ? '#fff' : 'var(--ink)',
-} as const)
+import { ToggleGroup } from './ui/toggle-group'
+import { Input } from './ui/input'
 
 /**
  * The named periods, plus a Custom option that reveals the month and day
@@ -21,35 +14,31 @@ export function RangePicker({ value, onChange }: { value: RangeSelection; onChan
   const pick = (mode: RangeMode) => set({ mode })
 
   return (
-    <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
-      {PRESETS.map(k => (
-        <button key={k} onClick={() => pick(k)} style={chip(value.mode === k)}>{PERIOD_LABELS[k]}</button>
-      ))}
-      {/* Entering Custom lands on a whole month, the more common of the two. */}
-      <button onClick={() => pick(custom ? value.mode : 'pickMonth')} style={chip(custom)}>Custom</button>
+    <div className="flex flex-wrap items-center gap-2 font-sans">
+      <ToggleGroup
+        label="Period"
+        value={custom ? 'custom' : value.mode}
+        // Entering Custom lands on a whole month, the more common of the two.
+        onChange={v => (v === 'custom' ? pick(custom ? value.mode : 'pickMonth') : pick(v as RangeMode))}
+        options={[...PRESETS.map(k => ({ value: k as string, label: PERIOD_LABELS[k] })), { value: 'custom', label: 'Custom' }]}
+      />
 
       {custom && (
         <>
-          <div style={{ display: 'flex', border: '1px solid var(--line)', borderRadius: 8, overflow: 'hidden' }}>
-            {(['pickMonth', 'pickDays'] as const).map(m => (
-              <button
-                key={m}
-                onClick={() => pick(m)}
-                style={{ border: 'none', padding: '8px 12px', fontWeight: 700, cursor: 'pointer',
-                  background: value.mode === m ? '#1A1A1A' : '#fff', color: value.mode === m ? '#fff' : 'var(--ink)' }}
-              >
-                {m === 'pickMonth' ? 'Month' : 'Days'}
-              </button>
-            ))}
-          </div>
+          <ToggleGroup
+            label="Custom range"
+            value={value.mode}
+            onChange={m => pick(m)}
+            options={[{ value: 'pickMonth' as RangeMode, label: 'Month' }, { value: 'pickDays' as RangeMode, label: 'Days' }]}
+          />
           {value.mode === 'pickMonth'
             ? <MonthRangePicker from={value.monthKey} to={value.toMonthKey ?? value.monthKey} onChange={(from, to) => set({ monthKey: from, toMonthKey: to })} />
             : (
-              <>
-                <input type="date" value={value.fromDay} onChange={e => set({ fromDay: e.target.value })} style={input} aria-label="From date" />
-                <span style={{ color: 'var(--muted)' }}>to</span>
-                <input type="date" value={value.toDay} onChange={e => set({ toDay: e.target.value })} style={input} aria-label="To date" />
-              </>
+              <div className="flex items-center gap-2">
+                <Input type="date" value={value.fromDay} onChange={e => set({ fromDay: e.target.value })} aria-label="From date" className="w-auto" />
+                <span className="text-sm text-muted-foreground">to</span>
+                <Input type="date" value={value.toDay} onChange={e => set({ toDay: e.target.value })} aria-label="To date" className="w-auto" />
+              </div>
             )}
         </>
       )}

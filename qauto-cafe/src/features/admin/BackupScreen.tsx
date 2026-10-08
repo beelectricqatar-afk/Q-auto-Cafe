@@ -11,6 +11,7 @@ import { isConfigured } from '../../sync/config'
 import { Modal } from '../../components/Modal'
 import { useToast } from '../../components/Toast'
 import { Card } from '../../components/Card'
+import { Button } from '../../components/ui/button'
 
 interface CloudBackup { id: string; created_at: number; payload: { kind?: string; periodKey?: string; exportedAt?: number; version?: number; data?: Record<string, unknown[]> } }
 
@@ -51,16 +52,16 @@ export function BackupScreen({ data, refresh }: { data: Data; refresh: () => Pro
   const staffName = (o: DeletionLog['order']) => o.walkin ? (o.customerName ? `Walk-in · ${o.customerName}` : 'Walk-in') : (data.staff.find(s => s.id === o.staffId)?.name ?? '—')
 
   return (
-    <div style={{ display: 'grid', gap: 20, maxWidth: 760 }}>
-      <h2 style={{ margin: 0 }}>Backup & Restore</h2>
+    <div className="grid max-w-[760px] gap-4">
+      <h2 className="m-0 text-2xl font-medium">Backup & Restore</h2>
 
       <Card title="Manual backup">
-        <div style={{ display: 'grid', gap: 10 }}>
-          <p style={{ color: 'var(--muted)', margin: 0 }}>Restoring replaces ALL current data on this device.</p>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            <button onClick={doExport} style={{ background: '#1A1A1A', color: '#fff', border: 'none', borderRadius: 10, padding: '12px 16px', fontWeight: 700 }}>Download backup (.json)</button>
-            <button onClick={() => fileRef.current?.click()} style={{ border: '1px solid #e5e5e5', background: '#fff', borderRadius: 10, padding: '12px 16px', fontWeight: 700 }}>Restore from file…</button>
-            <button onClick={saveToCloud} style={{ border: '1px solid #e5e5e5', background: '#fff', borderRadius: 10, padding: '12px 16px', fontWeight: 700 }}>Save backup to cloud now</button>
+        <div className="grid gap-3">
+          <p className="m-0 text-sm text-muted-foreground">Restoring replaces ALL current data on this device.</p>
+          <div className="flex flex-wrap gap-2">
+            <Button onClick={doExport}>Download backup (.json)</Button>
+            <Button variant="outline" onClick={() => fileRef.current?.click()}>Restore from file…</Button>
+            <Button variant="outline" onClick={saveToCloud}>Save backup to cloud now</Button>
           </div>
           <input ref={fileRef} type="file" accept="application/json" hidden onChange={e => { const f = e.target.files?.[0]; if (f) doImport(f) }} />
         </div>
@@ -69,47 +70,46 @@ export function BackupScreen({ data, refresh }: { data: Data; refresh: () => Pro
       <Card
         title="Cloud backups"
         padding={0}
-        actions={<span style={{ color: 'var(--muted)', fontSize: 13 }}>Auto: daily 10pm · monthly · {loadingList ? 'loading…' : `${backups.length} saved`}</span>}
+        actions={<span className="text-xs text-muted-foreground">Auto: daily 10pm · monthly · {loadingList ? 'loading…' : `${backups.length} saved`}</span>}
       >
-        {backups.length === 0 && <div className="card-row" style={{ color: 'var(--muted)' }}>No cloud backups yet.</div>}
+        {backups.length === 0 && <div className="card-row text-muted-foreground">No cloud backups yet.</div>}
         {backups.map(b => (
-          <div key={b.id} className="card-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-            <span>
-              <strong style={{ textTransform: 'capitalize' }}>{b.payload?.kind ?? 'backup'}</strong> · {new Date(b.created_at).toLocaleString()}
+          <div key={b.id} className="card-row flex items-center justify-between gap-2">
+            <span className="text-sm">
+              <strong className="font-semibold capitalize">{b.payload?.kind ?? 'backup'}</strong> · {new Date(b.created_at).toLocaleString()}
             </span>
-            <span style={{ display: 'flex', gap: 6 }}>
-              <button onClick={() => setViewing(b)} style={{ border: '1px solid #e5e5e5', background: '#fff', borderRadius: 8, padding: '6px 12px' }}>View</button>
-              <button onClick={() => loadCloud(b)} style={{ border: '1px solid #e5e5e5', background: '#fff', borderRadius: 8, padding: '6px 12px', fontWeight: 700 }}>Load</button>
+            <span className="flex gap-1.5">
+              <Button variant="outline" size="sm" onClick={() => setViewing(b)}>View</Button>
+              <Button variant="outline" size="sm" onClick={() => loadCloud(b)}>Load</Button>
             </span>
           </div>
         ))}
       </Card>
 
       <Card title="Deleted logs" padding={0}>
-        <p style={{ color: 'var(--muted)', margin: '0 24px 16px' }}>Orders removed by an admin, with reason. Not included in any export.</p>
-        {logs.length === 0 && <div className="card-row" style={{ color: 'var(--muted)' }}>No deletions logged.</div>}
+        <p className="mx-7 mt-0 mb-4 text-sm text-muted-foreground">Orders removed by an admin, with reason. Not included in any export.</p>
+        {logs.length === 0 && <div className="card-row text-muted-foreground">No deletions logged.</div>}
         {logs.map(l => (
-          <div key={l.id} className="card-row">
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <strong>{staffName(l.order)} · {formatQar(l.order.total)}</strong>
-              <span style={{ color: 'var(--muted)', fontSize: 13 }}>deleted {new Date(l.timestamp).toLocaleString()}</span>
+          <div key={l.id} className="card-row grid gap-1 text-sm">
+            <div className="flex justify-between gap-3">
+              <strong className="font-semibold">{staffName(l.order)} · {formatQar(l.order.total)}</strong>
+              <span className="text-xs text-muted-foreground">deleted {new Date(l.timestamp).toLocaleString()}</span>
             </div>
-            <div style={{ color: 'var(--muted)', fontSize: 13 }}>
+            <div className="text-xs text-muted-foreground">
               Order from {new Date(l.order.timestamp).toLocaleString()} · {l.order.lines.map(li => `${li.qty}× ${li.name}`).join(', ')}
             </div>
-            <div style={{ marginTop: 2 }}>Reason: {l.reason}</div>
+            <div>Reason: {l.reason}</div>
           </div>
         ))}
       </Card>
 
       <Modal open={!!viewing} title="Backup contents" onClose={() => setViewing(null)}>
         {viewing && (
-          <div style={{ display: 'grid', gap: 10 }}>
-            <div><strong style={{ textTransform: 'capitalize' }}>{viewing.payload?.kind ?? 'backup'}</strong> · {new Date(viewing.created_at).toLocaleString()}</div>
-            <div style={{ color: 'var(--muted)' }}>{countLine(viewing.payload?.data)}</div>
-            <button onClick={() => downloadText(`backup-${new Date(viewing.created_at).toISOString().slice(0, 10)}.json`, JSON.stringify({ version: viewing.payload?.version, exportedAt: viewing.payload?.exportedAt, data: viewing.payload?.data }), 'application/json')}
-              style={{ border: '1px solid var(--line)', background: '#fff', borderRadius: 10, padding: 12, fontWeight: 700 }}>Download as .json</button>
-            <button onClick={() => { setViewing(null); loadCloud(viewing) }} style={{ background: '#1A1A1A', color: '#fff', border: 'none', borderRadius: 10, padding: 12, fontWeight: 800 }}>Load this backup</button>
+          <div className="grid gap-3">
+            <div className="text-sm"><strong className="font-semibold capitalize">{viewing.payload?.kind ?? 'backup'}</strong> · {new Date(viewing.created_at).toLocaleString()}</div>
+            <div className="text-sm text-muted-foreground">{countLine(viewing.payload?.data)}</div>
+            <Button variant="outline" onClick={() => downloadText(`backup-${new Date(viewing.created_at).toISOString().slice(0, 10)}.json`, JSON.stringify({ version: viewing.payload?.version, exportedAt: viewing.payload?.exportedAt, data: viewing.payload?.data }), 'application/json')}>Download as .json</Button>
+            <Button size="lg" onClick={() => { setViewing(null); loadCloud(viewing) }}>Load this backup</Button>
           </div>
         )}
       </Modal>

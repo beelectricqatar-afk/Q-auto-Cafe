@@ -17,7 +17,7 @@ describe('Card', () => {
     const { container } = render(<Card title="Requests" style={{ overflow: 'visible' }}>x</Card>)
     const root = container.firstElementChild as HTMLElement
     expect(root.style.overflow).toBe('visible')
-    expect(root.style.borderRadius).toBe('16px') // other defaults survive
+    expect(root.className).toMatch(/rounded-card/) // the Calm look survives
   })
 
   it('clips by default', () => {

@@ -1,5 +1,7 @@
 import { useId, useState } from 'react'
 import type { Ingredient } from '../db/schema'
+import { cn } from '../lib/utils'
+import { fieldClass } from './ui/input'
 
 /**
  * Picks an item from the inventory, or names something that is not stocked
@@ -22,7 +24,7 @@ export function ItemPicker({ ingredients, onPick, label = 'Add an item from the 
   const pick = (o: Ingredient | string) => { onPick(o); setQuery(''); setHighlight(0) }
 
   return (
-    <div style={{ position: 'relative' }}>
+    <div className="relative">
       <input
         value={query}
         onChange={e => { setQuery(e.target.value); setHighlight(0) }}
@@ -38,10 +40,10 @@ export function ItemPicker({ ingredients, onPick, label = 'Add an item from the 
         role="combobox"
         aria-expanded={options.length > 0}
         aria-controls={listId}
-        style={{ padding: 10, borderRadius: 8, border: '1px solid var(--line)', fontSize: 16, background: '#fff', color: 'var(--ink)', width: '100%' }}
+        className={fieldClass}
       />
       {options.length > 0 && (
-        <div id={listId} role="listbox" style={{ position: 'absolute', left: 0, right: 0, top: 'calc(100% + 4px)', zIndex: 30, background: '#fff', border: '1px solid #e5e5e5', borderRadius: 10, boxShadow: '0 10px 30px rgba(16,24,40,.12)', overflow: 'hidden' }}>
+        <div id={listId} role="listbox" className="absolute inset-x-0 top-[calc(100%+6px)] z-30 grid gap-0.5 rounded-control border border-border bg-card p-1 font-sans shadow-pop">
           {options.map((o, i) => (
             <button
               key={typeof o === 'string' ? 'free' : o.id}
@@ -50,11 +52,11 @@ export function ItemPicker({ ingredients, onPick, label = 'Add an item from the 
               aria-selected={i === highlight}
               onMouseDown={e => e.preventDefault()}
               onClick={() => pick(o)}
-              style={{ display: 'flex', justifyContent: 'space-between', gap: 12, width: '100%', textAlign: 'left', padding: '10px 14px', border: 'none', borderTop: i ? '1px solid #f0f0f0' : 'none', background: i === highlight ? '#F4F5F6' : '#fff', fontSize: 15, color: 'var(--ink)' }}
+              className={cn('flex min-h-11 w-full cursor-pointer items-center justify-between gap-3 rounded-[8px] border-0 px-3 text-left text-sm text-foreground', i === highlight ? 'bg-muted' : 'bg-transparent hover:bg-muted')}
             >
               {typeof o === 'string'
-                ? <><span>Add “{o}” (not a stock item)</span><span style={{ color: 'var(--muted)' }}>{freeNote}</span></>
-                : <><span style={{ fontWeight: 600 }}>{o.name}</span><span style={{ color: 'var(--muted)' }}>{o.stockQty} {o.unit} in stock</span></>}
+                ? <><span>Add “{o}” (not a stock item)</span><span className="text-xs text-muted-foreground">{freeNote}</span></>
+                : <><span className="font-medium">{o.name}</span><span className="text-xs text-muted-foreground">{o.stockQty} {o.unit} in stock</span></>}
             </button>
           ))}
         </div>

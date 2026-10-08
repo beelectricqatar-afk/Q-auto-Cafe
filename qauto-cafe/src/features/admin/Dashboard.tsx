@@ -32,27 +32,27 @@ export function Dashboard({ data }: { data: Data }) {
   const low = data.ingredients.filter(i => i.stockQty <= i.lowStockThreshold)
 
   return (
-    <div style={{ display: 'grid', gap: 16 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
-        <h2 style={{ margin: 0 }}>Dashboard</h2>
+    <div className="grid gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 className="m-0 text-2xl font-medium">Dashboard</h2>
         <RangePicker value={selection} onChange={setSelection} />
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gridAutoRows: 'auto', gap: 16 }}>
+      <div className="grid auto-rows-auto grid-cols-4 gap-4">
         <MetricCard style={{ gridColumn: '1', gridRow: '1' }} icon={OrdersIcon} label={`Orders · ${range.label.toLowerCase()}`} value={String(inRange.length)} />
         <MetricCard style={{ gridColumn: '2', gridRow: '1' }} icon={DollarIcon} label="Avg order value" value={formatQar(avgOrderValue(inRange))} />
         <MetricCard style={{ gridColumn: '3', gridRow: '1' }} icon={DirectoryIcon} label="Walk-ins" value={String(walkinCount(inRange))} />
 
-        <div className="card-hoverable dark" style={{ gridColumn: '4', gridRow: '1 / span 2', background: '#1A1A1A', border: '1px solid #1A1A1A', borderRadius: 16, padding: 24, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: 20 }}>
-          <div style={{ background: 'rgba(255,255,255,0.12)', borderRadius: 12, width: 48, height: 48, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}>
+        <div className="card-hoverable col-start-4 row-span-2 row-start-1 flex flex-col justify-between gap-5 rounded-card bg-primary p-7 text-primary-foreground">
+          <div className="flex size-12 items-center justify-center rounded-control bg-white/12 text-white">
             <DollarIcon className="metric-card-icon" />
           </div>
           <div>
-            <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.65)' }}>Revenue · {range.label.toLowerCase()}</div>
-            <div style={{ fontSize: 30, fontWeight: 700, lineHeight: '38px', color: '#fff', marginBottom: 8 }}>{formatQar(revenue(inRange))}</div>
-            <div style={{ display: 'grid', gap: 8, fontSize: 14 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16 }}><span style={{ color: 'rgba(255,255,255,0.65)' }}>Departments</span><strong style={{ whiteSpace: 'nowrap', color: '#fff' }}>{formatQar(deptRevenue)}</strong></div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16 }}><span style={{ color: 'rgba(255,255,255,0.65)' }}>Walk-in</span><strong style={{ whiteSpace: 'nowrap', color: '#fff' }}>{formatQar(walkinRevenue)}</strong></div>
+            <div className="text-sm text-white/65">Revenue · {range.label.toLowerCase()}</div>
+            <div className="mb-2 text-[30px] leading-[38px] font-semibold text-white tabular-nums">{formatQar(revenue(inRange))}</div>
+            <div className="grid gap-2 text-sm">
+              <div className="flex justify-between gap-4"><span className="text-white/65">Departments</span><strong className="font-semibold whitespace-nowrap text-white tabular-nums">{formatQar(deptRevenue)}</strong></div>
+              <div className="flex justify-between gap-4"><span className="text-white/65">Walk-in</span><strong className="font-semibold whitespace-nowrap text-white tabular-nums">{formatQar(walkinRevenue)}</strong></div>
             </div>
           </div>
         </div>
@@ -60,31 +60,31 @@ export function Dashboard({ data }: { data: Data }) {
         <MetricCard style={{ gridColumn: '1', gridRow: '2' }} icon={InventoryIcon} label="Low-stock items" value={String(low.length)} tone={low.length > 0 ? 'bad' : 'normal'} />
         <MetricCard style={{ gridColumn: '2 / span 2', gridRow: '2' }} icon={ClockIcon} label="Peak hour" value={peakHour(inRange) ?? '—'} />
 
-        <div style={{ gridColumn: '1 / span 4', gridRow: '3' }}>
+        <div className="col-span-4 row-start-3">
           <RevenueChart points={series} rangeLabel={range.label} />
         </div>
 
-        <div style={{ gridColumn: '1 / span 2', gridRow: '4' }}>
+        <div className="col-span-2 col-start-1 row-start-4">
           <Card hoverable title={`Top items · ${range.label.toLowerCase()}`}>
-            <div style={{ display: 'grid', gap: 6 }}>
-              {items.length === 0 && <span style={{ color: 'var(--muted)' }}>No orders yet</span>}
+            <div className="grid gap-2 text-sm">
+              {items.length === 0 && <span className="text-muted-foreground">No orders yet</span>}
               {items.map((it, i) => (
-                <div key={it.name} style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span>{i + 1}. {it.name} <span style={{ color: 'var(--muted)' }}>×{it.qty}</span></span>
-                  <strong>{formatQar(it.revenue)}</strong>
+                <div key={it.name} className="flex justify-between gap-3">
+                  <span>{i + 1}. {it.name} <span className="text-muted-foreground">×{it.qty}</span></span>
+                  <strong className="font-semibold tabular-nums">{formatQar(it.revenue)}</strong>
                 </div>
               ))}
             </div>
           </Card>
         </div>
-        <div style={{ gridColumn: '3 / span 2', gridRow: '4' }}>
+        <div className="col-span-2 col-start-3 row-start-4">
           <Card hoverable title={`Top departments · ${range.label.toLowerCase()}`}>
-            <div style={{ display: 'grid', gap: 6 }}>
-              {depts.length === 0 && <span style={{ color: 'var(--muted)' }}>No orders yet</span>}
+            <div className="grid gap-2 text-sm">
+              {depts.length === 0 && <span className="text-muted-foreground">No orders yet</span>}
               {depts.map((d, i) => (
-                <div key={d.name} style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span>{i + 1}. {d.name} <span style={{ color: 'var(--muted)' }}>({d.orderCount})</span></span>
-                  <strong>{formatQar(d.total)}</strong>
+                <div key={d.name} className="flex justify-between gap-3">
+                  <span>{i + 1}. {d.name} <span className="text-muted-foreground">({d.orderCount})</span></span>
+                  <strong className="font-semibold tabular-nums">{formatQar(d.total)}</strong>
                 </div>
               ))}
             </div>
@@ -93,8 +93,8 @@ export function Dashboard({ data }: { data: Data }) {
       </div>
 
       {low.length > 0 && (
-        <div style={{ background: '#fff8e6', border: '1px solid #f0c36a', borderRadius: 16, padding: 24 }}>
-          <strong>Low stock:</strong> {low.map(i => `${i.name} (${i.stockQty}${i.unit})`).join(', ')}
+        <div role="status" className="rounded-card border border-[#FEDF89] bg-warning-soft px-7 py-5 text-sm">
+          <strong className="font-semibold text-warning">Low stock:</strong> {low.map(i => `${i.name} (${i.stockQty}${i.unit})`).join(', ')}
         </div>
       )}
     </div>

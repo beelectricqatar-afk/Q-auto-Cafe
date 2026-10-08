@@ -11,8 +11,10 @@ import { Card } from '../../components/Card'
 import { MetricCard } from '../../components/MetricCard'
 import { MonthRangePicker } from '../../components/MonthRangePicker'
 import { DollarIcon, PercentIcon, InventoryIcon, TrashIcon, WalletIcon, TrendUpIcon } from './sidebarIcons'
+import { Button } from '../../components/ui/button'
+import { Input, Textarea } from '../../components/ui/input'
+import { ToggleGroup } from '../../components/ui/toggle-group'
 
-const input = { padding: 10, borderRadius: 8, border: '1px solid var(--line)', fontSize: 15 } as const
 interface WastageForm {
   date: string
   itemName: string
@@ -175,42 +177,36 @@ export function FinanceScreen({ data }: { data: Data }) {
   }
 
   return (
-    <div style={{ display: 'grid', gap: 16 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
+    <div className="grid gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 style={{ margin: 0 }}>Finance</h2>
-          <div style={{ color: 'var(--muted)', fontWeight: 700 }}>{summary.range.label}</div>
+          <h2 className="m-0 text-2xl font-medium">Finance</h2>
+          <div className="text-sm text-muted-foreground">{summary.range.label}</div>
         </div>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-          <div style={{ display: 'flex', border: '1px solid var(--line)', borderRadius: 8, overflow: 'hidden' }}>
-            {(['month', 'days'] as const).map(m => (
-              <button
-                key={m}
-                onClick={() => setRangeMode(m)}
-                style={{ border: 'none', padding: '9px 14px', fontWeight: 700, cursor: 'pointer',
-                  background: rangeMode === m ? '#1A1A1A' : '#fff', color: rangeMode === m ? '#fff' : 'var(--ink)' }}
-              >
-                {m === 'month' ? 'Month' : 'Days'}
-              </button>
-            ))}
-          </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <ToggleGroup
+            label="Period"
+            value={rangeMode}
+            onChange={setRangeMode}
+            options={[{ value: 'month', label: 'Month' }, { value: 'days', label: 'Days' }]}
+          />
           {rangeMode === 'month'
             ? <MonthRangePicker from={monthKey} to={toMonthKey} onChange={(from, to) => { setMonthKey(from); setToMonthKey(to) }} />
             : (
               <>
-                <input type="date" value={fromDay} onChange={e => setFromDay(e.target.value)} style={input} aria-label="From date" />
-                <span style={{ color: 'var(--muted)' }}>to</span>
-                <input type="date" value={toDay} onChange={e => setToDay(e.target.value)} style={input} aria-label="To date" />
+                <Input type="date" value={fromDay} onChange={e => setFromDay(e.target.value)} aria-label="From date" className="w-auto" />
+                <span className="text-sm text-muted-foreground">to</span>
+                <Input type="date" value={toDay} onChange={e => setToDay(e.target.value)} aria-label="To date" className="w-auto" />
               </>
             )}
-          <button onClick={exportBillingStatement} style={{ border: '1px solid var(--line)', background: '#fff', borderRadius: 8, padding: '9px 12px', fontWeight: 700 }}>Billing Excel</button>
-          <button onClick={() => exportDetailedSales(summary.orders, data, range.key)} style={{ border: '1px solid var(--line)', background: '#fff', borderRadius: 8, padding: '9px 12px', fontWeight: 700 }}>Sales Excel</button>
-          <button onClick={() => exportExpenses(summary.expenses, range.key)} style={{ border: '1px solid var(--line)', background: '#fff', borderRadius: 8, padding: '9px 12px', fontWeight: 700 }}>Expenses Excel</button>
-          <button onClick={() => exportBusinessSummaryPdf(summary)} style={{ background: '#1A1A1A', color: '#fff', border: 'none', borderRadius: 8, padding: '10px 14px', fontWeight: 800 }}>Summary PDF</button>
+          <Button variant="outline" size="sm" onClick={exportBillingStatement}>Billing Excel</Button>
+          <Button variant="outline" size="sm" onClick={() => exportDetailedSales(summary.orders, data, range.key)}>Sales Excel</Button>
+          <Button variant="outline" size="sm" onClick={() => exportExpenses(summary.expenses, range.key)}>Expenses Excel</Button>
+          <Button size="sm" onClick={() => exportBusinessSummaryPdf(summary)}>Summary PDF</Button>
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 }}>
+      <div className="grid grid-cols-4 gap-4">
         <MetricCard valueSize={22} icon={DollarIcon} label="Gross sales" value={formatQar(summary.grossSales)} />
         <MetricCard valueSize={22} icon={PercentIcon} label="Discounts" value={formatQar(summary.discounts)} tone={summary.discounts > 0 ? 'bad' : 'normal'} />
         <MetricCard valueSize={22} icon={TrashIcon} label="Wastage" value={formatQar(summary.wastageTotal)} tone={summary.wastageTotal > 0 ? 'bad' : 'normal'} />
@@ -232,61 +228,61 @@ export function FinanceScreen({ data }: { data: Data }) {
       {/* Without any costs logged, profit just equals sales — say so rather than
           letting a 100% margin read as a real result. */}
       {summary.cogs === 0 && summary.netSales > 0 && (
-        <div style={{ background: '#fff8e6', border: '1px solid #f0c36a', borderRadius: 16, padding: 24 }}>
-          <strong>No costs recorded for this period.</strong> COGS is expenses plus wastage, and
+        <div role="status" className="rounded-card border border-[#FEDF89] bg-warning-soft px-7 py-5 text-sm">
+          <strong className="font-semibold text-warning">No costs recorded for this period.</strong> COGS is expenses plus wastage, and
           neither has been logged, so profit below is simply net sales. Log wastage below and
           expenses on the Requests page to make these figures meaningful.
         </div>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(280px, 420px) 1fr', gap: 16, alignItems: 'start' }}>
+      <div className="grid grid-cols-[minmax(280px,420px)_1fr] items-start gap-4">
         <Card hoverable title="Log wastage">
-          <div style={{ display: 'grid', gap: 10 }}>
-            <input type="date" value={wastageForm.date} onChange={e => setWastageForm({ ...wastageForm, date: e.target.value })} style={input} />
-            <input value={wastageForm.itemName} onChange={e => setWastageForm({ ...wastageForm, itemName: e.target.value })} placeholder="Item, e.g. Oranges" style={input} />
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 110px', gap: 8 }}>
-              <input type="number" value={wastageForm.qty} onChange={e => setWastageForm({ ...wastageForm, qty: e.target.value })} placeholder="Qty optional" style={input} />
-              <input value={wastageForm.unit} onChange={e => setWastageForm({ ...wastageForm, unit: e.target.value })} placeholder="Unit" style={input} />
+          <div className="grid gap-3">
+            <Input type="date" value={wastageForm.date} onChange={e => setWastageForm({ ...wastageForm, date: e.target.value })} aria-label="Wastage date" />
+            <Input value={wastageForm.itemName} onChange={e => setWastageForm({ ...wastageForm, itemName: e.target.value })} placeholder="Item, e.g. Oranges" />
+            <div className="grid grid-cols-[1fr_110px] gap-2">
+              <Input type="number" value={wastageForm.qty} onChange={e => setWastageForm({ ...wastageForm, qty: e.target.value })} placeholder="Qty optional" />
+              <Input value={wastageForm.unit} onChange={e => setWastageForm({ ...wastageForm, unit: e.target.value })} placeholder="Unit" />
             </div>
-            <input type="number" value={wastageForm.amountQar} onChange={e => setWastageForm({ ...wastageForm, amountQar: e.target.value })} placeholder="Money lost QAR optional" style={input} />
-            <input value={wastageForm.reason} onChange={e => setWastageForm({ ...wastageForm, reason: e.target.value })} placeholder="Reason, e.g. expired" style={input} />
-            <textarea value={wastageForm.notes} onChange={e => setWastageForm({ ...wastageForm, notes: e.target.value })} placeholder="Notes" rows={2} style={{ ...input, fontFamily: 'inherit' }} />
-            <button onClick={saveWastage} style={{ background: '#1A1A1A', color: '#fff', border: 'none', borderRadius: 10, padding: 12, fontWeight: 800 }}>Save wastage</button>
+            <Input type="number" value={wastageForm.amountQar} onChange={e => setWastageForm({ ...wastageForm, amountQar: e.target.value })} placeholder="Money lost QAR optional" />
+            <Input value={wastageForm.reason} onChange={e => setWastageForm({ ...wastageForm, reason: e.target.value })} placeholder="Reason, e.g. expired" />
+            <Textarea value={wastageForm.notes} onChange={e => setWastageForm({ ...wastageForm, notes: e.target.value })} placeholder="Notes" rows={2} />
+            <Button size="lg" onClick={saveWastage}>Save wastage</Button>
           </div>
         </Card>
 
         <Card hoverable title={`Wastage (${summary.wastages.length})`} padding={0}>
-          {summary.wastages.length === 0 && <div className="card-row" style={{ color: 'var(--muted)' }}>No wastage logged for this month.</div>}
+          {summary.wastages.length === 0 && <div className="card-row text-muted-foreground">No wastage logged for this month.</div>}
           {summary.wastages.slice().sort((a, b) => b.timestamp - a.timestamp).map(w => (
-            <div key={w.id} className="card-row" style={{ display: 'grid', gridTemplateColumns: '110px 1fr auto auto', gap: 10, alignItems: 'center' }}>
-              <span style={{ color: 'var(--muted)' }}>{w.date}</span>
-              <span>
-                <strong>{w.itemName}</strong>
+            <div key={w.id} className="card-row grid grid-cols-[100px_1fr_auto_auto] items-center gap-3">
+              <span className="text-xs text-muted-foreground tabular-nums">{w.date}</span>
+              <span className="min-w-0">
+                <strong className="font-semibold">{w.itemName}</strong>
                 {w.qty ? ` - ${w.qty}${w.unit ? ` ${w.unit}` : ''}` : ''}
                 {w.reason ? ` - ${w.reason}` : ''}
               </span>
-              <strong>{w.amountQar ? formatQar(w.amountQar) : 'No amount'}</strong>
+              <strong className="font-semibold tabular-nums">{w.amountQar ? formatQar(w.amountQar) : 'No amount'}</strong>
               <button onClick={() => removeWastage(w.id)} className="icon-btn danger" aria-label="Delete" title="Delete"><TrashIcon /></button>
             </div>
           ))}
         </Card>
 
         <Card hoverable title="Receipt archive" padding={0} style={{ gridColumn: '1 / -1' }}>
-          <div style={{ padding: '0 24px 20px' }}>
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', paddingTop: 20 }}>
-              <button onClick={() => receiptRef.current?.click()} style={{ background: '#1A1A1A', color: '#fff', border: 'none', borderRadius: 8, padding: '9px 12px', fontWeight: 800 }}>Upload receipt</button>
+          <div className="grid gap-2 px-7 pt-2 pb-5">
+            <div className="flex flex-wrap gap-2">
+              <Button size="sm" onClick={() => receiptRef.current?.click()}>Upload receipt</Button>
               <input ref={receiptRef} type="file" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx" capture="environment" multiple onChange={e => void storeReceiptFiles(e.target.files)} style={{ display: 'none' }} />
             </div>
-            <span style={{ color: 'var(--muted)', fontSize: 13 }}>Stored locally in the app for finance records. Photos, PDFs, and files are accepted.</span>
+            <span className="text-xs text-muted-foreground">Stored locally in the app for finance records. Photos, PDFs, and files are accepted.</span>
           </div>
-          {receipts.length === 0 && <div className="card-row" style={{ color: 'var(--muted)' }}>No receipts uploaded yet.</div>}
+          {receipts.length === 0 && <div className="card-row text-muted-foreground">No receipts uploaded yet.</div>}
           {receipts.slice().sort((a, b) => b.uploadedAt - a.uploadedAt).slice(0, 8).map(r => (
-            <div key={r.id} className="card-row" style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', gap: 8, alignItems: 'center' }}>
-              <a href={r.dataUrl} download={r.fileName} style={{ color: 'inherit', textDecoration: 'none', fontWeight: 700 }}>
+            <div key={r.id} className="card-row grid grid-cols-[1fr_auto_auto] items-center gap-3">
+              <a href={r.dataUrl} download={r.fileName} className="min-w-0 font-semibold text-inherit no-underline hover:underline">
                 {r.fileName}
-                <span style={{ color: 'var(--muted)', fontWeight: 400 }}> - {(r.size / 1024).toFixed(1)} KB</span>
+                <span className="font-normal text-muted-foreground"> · {(r.size / 1024).toFixed(1)} KB</span>
               </a>
-              <span style={{ color: 'var(--muted)', fontSize: 12 }}>{new Date(r.uploadedAt).toLocaleDateString()}</span>
+              <span className="text-xs text-muted-foreground">{new Date(r.uploadedAt).toLocaleDateString()}</span>
               <button onClick={() => removeReceipt(r.id)} className="icon-btn danger" aria-label="Delete" title="Delete"><TrashIcon /></button>
             </div>
           ))}

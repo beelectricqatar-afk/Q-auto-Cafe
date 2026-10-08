@@ -6,6 +6,9 @@ import { CrudList } from '../../components/CrudList'
 import { useToast } from '../../components/Toast'
 import { Card } from '../../components/Card'
 import { subDivision, subUnitUnset } from '../../domain/deduction'
+import { Button } from '../../components/ui/button'
+import { Input } from '../../components/ui/input'
+import { Badge } from '../../components/ui/badge'
 
 // Order roughly by how often they are picked, volume then weight then counts.
 const UNITS: Unit[] = ['ml', 'L', 'g', 'kg', 'pcs', 'pc', 'shot', 'oz', 'slices', 'leaves', 'bag', 'bottle', 'bundle']
@@ -41,7 +44,7 @@ export function InventoryScreen({ data, refresh }: { data: Data; refresh: () => 
     toast(d ? 'Stock updated' : `Now ${nextPer} ${adjusting.subUnit} per ${adjusting.unit}`)
   }
   return (
-    <div style={{ display: 'grid', gap: 16 }}>
+    <div className="grid gap-4">
       <CrudList<Ingredient>
         title="Inventory"
         rows={data.ingredients}
@@ -68,16 +71,19 @@ export function InventoryScreen({ data, refresh }: { data: Data; refresh: () => 
           // unit behind, which is why the "open" count goes with per > 1.
           const divided = !!i.subUnit && !halfSet
           return (
-            <span>
-              <strong>{i.name}</strong> - {i.stockQty}{i.unit}
-              {divided && <span style={{ color: 'var(--muted)' }}>{sub.per > 1 ? ` - ${i.openSubQty ?? 0} ${sub.unit} open` : ''} - {sub.per} {sub.unit}/{i.unit}</span>}
-              {i.unitCostQar != null && <span style={{ color: 'var(--muted)' }}> - {i.unitCostQar} QAR/{i.unit}</span>}
-              {' '}
-              {halfSet && <span style={{ color: 'var(--danger)', fontWeight: 700 }}>SET {i.subUnit!.toUpperCase()} PER {i.unit.toUpperCase()}</span>}
-              {' '}
-              {i.stockQty <= i.lowStockThreshold && <span style={{ color: 'var(--danger)', fontWeight: 700 }}>LOW</span>}
-              <button onClick={() => openAdjust(i)} style={{ marginLeft: 8, border: '1px solid var(--line)', borderRadius: 8, padding: '2px 10px', background: '#fff' }}>Adjust</button>
-            </span>
+            <div className="grid gap-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <strong className="font-semibold">{i.name}</strong>
+                {i.stockQty <= i.lowStockThreshold && <Badge variant="danger">LOW</Badge>}
+                {halfSet && <Badge variant="danger">SET {i.subUnit!.toUpperCase()} PER {i.unit.toUpperCase()}</Badge>}
+              </div>
+              <div className="text-xs text-muted-foreground tabular-nums">
+                <span className="font-semibold text-foreground">{i.stockQty}{i.unit}</span>
+                {divided && <span>{sub.per > 1 ? ` · ${i.openSubQty ?? 0} ${sub.unit} open` : ''} · {sub.per} {sub.unit}/{i.unit}</span>}
+                {i.unitCostQar != null && <span> · {i.unitCostQar} QAR/{i.unit}</span>}
+              </div>
+              <Button variant="outline" size="sm" className="mt-1 h-8 justify-self-start px-3 text-xs" onClick={() => openAdjust(i)}>Adjust</Button>
+            </div>
           )
         }}
         empty={() => ({ name: '', unit: 'ml', stockQty: 0, lowStockThreshold: 0 })}
@@ -86,31 +92,31 @@ export function InventoryScreen({ data, refresh }: { data: Data; refresh: () => 
       />
       {adjusting && (
         <Card title={`Adjust ${adjusting.name}`}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          <div className="flex flex-wrap items-center gap-2.5">
             {/* Always in whole stocked units, never sub-units — an opened unit is
                 tracked separately and is left alone by an adjustment. */}
-            <span style={{ color: 'var(--muted)' }}>
+            <span className="text-sm text-muted-foreground">
               In {adjusting.unit} - e.g. +5000 received, -200 wastage:
             </span>
-            <input type="number" value={delta} onChange={e => setDelta(e.target.value)} aria-label={`Adjust by, in ${adjusting.unit}`} style={{ padding: 8, borderRadius: 8, border: '1px solid var(--line)' }} />
+            <Input type="number" value={delta} onChange={e => setDelta(e.target.value)} aria-label={`Adjust by, in ${adjusting.unit}`} className="w-36" />
 
             {/* Set the yield as stock arrives — this bundle may not match the last. */}
             {adjusting.subUnit && (
               <>
-                <span style={{ color: 'var(--muted)', borderLeft: '1px solid var(--line)', paddingLeft: 16 }}>
+                <span className="border-l border-border pl-4 text-sm text-muted-foreground">
                   {adjusting.subUnit} per {adjusting.unit}:
                 </span>
-                <input
+                <Input
                   type="number"
                   value={per}
                   onChange={e => setPer(e.target.value)}
                   aria-label={`${adjusting.subUnit} per ${adjusting.unit}`}
-                  style={{ width: 90, padding: 8, borderRadius: 8, border: '1px solid var(--line)' }}
+                  className="w-24"
                 />
               </>
             )}
 
-            <button onClick={applyAdjust} style={{ background: '#1A1A1A', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px', fontWeight: 700 }}>Apply</button>
+            <Button onClick={applyAdjust}>Apply</Button>
           </div>
         </Card>
       )}

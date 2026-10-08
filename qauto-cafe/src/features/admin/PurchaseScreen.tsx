@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useState, type CSSProperties } from 'react'
+import { useEffect, useId, useMemo, useState } from 'react'
 import type { Data } from '../../app/useData'
 import { repo } from '../../db/repo'
 import type { FinanceExpense, FinanceReceipt, Ingredient } from '../../db/schema'
@@ -10,12 +10,13 @@ import { BULK_UNIT, applyPurchase, formatUnitPrice, priceChangePct, unitPrice, t
 import { TrashIcon } from './sidebarIcons'
 import { formatQty, itemKey, type ShoppingItem } from '../../domain/shoppingList'
 import { ItemPicker } from '../../components/ItemPicker'
-
-const INK = '#1A1A1A'
-const input: CSSProperties = { padding: 10, borderRadius: 8, border: '1px solid var(--line)', fontSize: 16, background: '#fff', color: 'var(--ink)', width: '100%' }
-const label: CSSProperties = { display: 'grid', gap: 6, fontSize: 14, fontWeight: 600 }
-const errText: CSSProperties = { color: 'var(--danger)', fontSize: 13, fontWeight: 600 }
-const bad = (on: boolean): CSSProperties => (on ? { borderColor: 'var(--danger)', boxShadow: '0 0 0 1px var(--danger)' } : {})
+import { Button, buttonVariants } from '../../components/ui/button'
+import { Input } from '../../components/ui/input'
+import { Field } from '../../components/ui/label'
+import { Badge } from '../../components/ui/badge'
+import { Checkbox } from '../../components/ui/checkbox'
+import { ToggleGroup } from '../../components/ui/toggle-group'
+import { cn } from '../../lib/utils'
 const round2 = (n: number) => Math.round(n * 100) / 100
 
 /** One line of the receipt as it is being typed. Numbers stay strings until saved. */
@@ -82,18 +83,18 @@ async function readPhoto(file: File): Promise<Pick<FinanceReceipt, 'dataUrl' | '
 /** "↑ 48% from 0.90" — what changed since the last receipt, so a jump is noticed. */
 function PriceChange({ row }: { row: Row }) {
   const ing = row.ingredient
-  if (!ing) return <span style={{ color: 'var(--muted)', fontSize: 13 }}>expense only</span>
+  if (!ing) return <Badge variant="outline">expense only</Badge>
   const qty = stockQtyOf(row), total = totalOf(row)
   if (!(qty > 0 && total > 0)) return null
   const now = unitPrice({ qty, totalQar: total })
   const pct = priceChangePct(now, ing.unitCostQar)
-  if (pct == null) return <span style={{ color: 'var(--muted)', fontSize: 13 }}>first price recorded</span>
-  if (pct === 0) return <span style={{ color: 'var(--muted)', fontSize: 13 }}>same as last time</span>
+  if (pct == null) return <Badge>first price recorded</Badge>
+  if (pct === 0) return <Badge>same as last time</Badge>
   const per = factor(row)
   return (
-    <span style={{ fontSize: 13, fontWeight: 600, color: pct > 0 ? '#B54708' : '#027A48' }}>
+    <Badge variant={pct > 0 ? 'warning' : 'success'}>
       {pct > 0 ? '↑' : '↓'} {Math.abs(pct)}% from {formatUnitPrice(ing.unitCostQar! * per)}
-    </span>
+    </Badge>
   )
 }
 
@@ -222,156 +223,140 @@ export function PurchaseScreen({ data, refresh, onClose, receiving }: { data: Da
   const stays = rows.filter(r => r.asked != null && (!r.bought || stockQtyOf(r) < r.asked)).length
 
   return (
-    <div style={{ display: 'grid', gap: 16, maxWidth: 1180 }}>
+    <div className="grid max-w-[1180px] gap-4">
       <div>
-        <button onClick={back} style={{ border: 'none', background: 'none', padding: 0, fontWeight: 700, color: 'var(--muted)', minHeight: 32 }}>← Requests</button>
+        <Button variant="ghost" size="sm" className="-ml-3 text-muted-foreground" onClick={back}>← Requests</Button>
       </div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, flexWrap: 'wrap' }}>
-        <h2 style={{ margin: 0 }}>{receiving ? 'Receive' : 'Add purchase'}</h2>
-        <span style={{ color: 'var(--muted)', fontSize: 14 }}>{receiving ? 'Untick anything you could not buy; it stays on the shopping list' : 'Enter it straight from the receipt'}</span>
+      <div className="flex flex-wrap items-baseline justify-between gap-3">
+        <h2 className="m-0 text-2xl font-medium">{receiving ? 'Receive' : 'Add purchase'}</h2>
+        <span className="text-sm text-muted-foreground">{receiving ? 'Untick anything you could not buy; it stays on the shopping list' : 'Enter it straight from the receipt'}</span>
       </div>
 
       {confirmLeave && (
-        <Card>
-          <div role="alertdialog" aria-label="Leave this purchase" style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-            <span style={{ flex: 1, fontWeight: 600 }}>Leave without saving? What you have typed will be lost.</span>
-            <button onClick={onClose} style={{ border: '1px solid var(--danger)', color: 'var(--danger)', background: '#fff', borderRadius: 10, padding: '10px 14px', fontWeight: 700 }}>Discard</button>
-            <button onClick={() => setConfirmLeave(false)} style={{ border: '1px solid #e5e5e5', background: '#fff', borderRadius: 10, padding: '10px 14px', fontWeight: 700 }}>Keep editing</button>
-          </div>
-        </Card>
+        <div role="alertdialog" aria-label="Leave this purchase" className="flex flex-wrap items-center gap-2.5 rounded-control border border-[#FEDF89] bg-warning-soft p-4">
+          <span className="flex-1 text-sm font-medium">Leave without saving? What you have typed will be lost.</span>
+          <Button variant="outline" size="sm" onClick={onClose}>Discard</Button>
+          <Button size="sm" onClick={() => setConfirmLeave(false)}>Keep editing</Button>
+        </div>
       )}
 
-      <Card title="Receipt" actions={<span style={{ color: 'var(--muted)', fontSize: 13 }}><span style={{ color: 'var(--danger)' }}>*</span> required</span>}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14 }}>
-          <label style={label}>
-            <span>Vendor <span style={{ color: 'var(--danger)' }}>*</span></span>
-            <input className="free-list" list={vendorList} value={vendor} onChange={e => setVendor(e.target.value)} placeholder="Type any vendor" autoComplete="off" aria-invalid={tried && !vendor.trim()} style={{ ...input, ...bad(tried && !vendor.trim()) }} />
+      <Card title="Receipt" actions={<span className="text-xs text-muted-foreground"><span className="text-destructive">*</span> required</span>}>
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-4">
+          <Field label="Vendor" htmlFor="purchase-vendor" required>
+            <Input id="purchase-vendor" className="free-list" list={vendorList} value={vendor} onChange={e => setVendor(e.target.value)} placeholder="Type any vendor" autoComplete="off" aria-invalid={tried && !vendor.trim()} />
             <datalist id={vendorList}>{vendors.map(v => <option key={v} value={v} />)}</datalist>
-          </label>
-          <label style={label}>
-            <span>Receipt number <span style={{ color: 'var(--danger)' }}>*</span></span>
-            <input value={receiptNumber} onChange={e => setReceiptNumber(e.target.value)} placeholder="As printed on the receipt" autoComplete="off" aria-invalid={tried && !receiptNumber.trim()} style={{ ...input, ...bad(tried && !receiptNumber.trim()) }} />
-          </label>
-          <label style={label}>
-            <span>Date</span>
-            <input type="date" value={date} max={todayKey()} onChange={e => setDate(e.target.value || todayKey())} style={input} />
-          </label>
-          <div style={label}>
-            <span id="paid-by">Paid by</span>
-            <div role="group" aria-labelledby="paid-by" style={{ display: 'flex', gap: 4, background: '#F4F5F6', padding: 4, borderRadius: 10 }}>
-              {(['Cash', 'Card'] as const).map(p => (
-                <button key={p} type="button" aria-pressed={paidBy === p} onClick={() => setPaidBy(p)}
-                  style={{ flex: 1, border: 'none', borderRadius: 8, padding: 8, fontWeight: 700, background: paidBy === p ? '#fff' : 'transparent', boxShadow: paidBy === p ? '0 1px 3px rgba(0,0,0,.12)' : 'none', color: 'var(--ink)' }}>{p}</button>
-              ))}
-            </div>
+          </Field>
+          <Field label="Receipt number" htmlFor="purchase-ref" required>
+            <Input id="purchase-ref" value={receiptNumber} onChange={e => setReceiptNumber(e.target.value)} placeholder="As printed on the receipt" autoComplete="off" aria-invalid={tried && !receiptNumber.trim()} />
+          </Field>
+          <Field label="Date" htmlFor="purchase-date">
+            <Input id="purchase-date" type="date" value={date} max={todayKey()} onChange={e => setDate(e.target.value || todayKey())} />
+          </Field>
+          <div className="grid gap-1.5">
+            <span className="text-sm font-medium">Paid by</span>
+            <ToggleGroup label="Paid by" fullWidth value={paidBy} onChange={setPaidBy} options={[{ value: 'Cash', label: 'Cash' }, { value: 'Card', label: 'Card' }]} />
           </div>
-          <div style={label}>
-            <span>Receipt photo</span>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              {photo && <img src={photo.dataUrl} alt="Receipt" style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: 8, border: '1px solid var(--line)' }} />}
-              <label style={{ border: '1px solid #e5e5e5', background: '#fff', borderRadius: 8, padding: '10px 14px', fontWeight: 700, cursor: 'pointer' }}>
+          <div className="grid gap-1.5">
+            <span className="text-sm font-medium">Receipt photo</span>
+            <div className="flex items-center gap-2.5">
+              {photo && <img src={photo.dataUrl} alt="Receipt" className="size-12 rounded-[10px] border border-border object-cover" />}
+              <label className={cn(buttonVariants({ variant: 'outline' }))}>
                 {photo ? 'Replace photo' : 'Add photo'}
                 <input type="file" accept="image/*" capture="environment" aria-label="Receipt photo" style={{ display: 'none' }}
                   onChange={async e => { const f = e.target.files?.[0]; if (f) setPhoto(await readPhoto(f)); e.target.value = '' }} />
               </label>
-              {photo && <button type="button" onClick={() => setPhoto(null)} style={{ border: 'none', background: 'none', color: 'var(--muted)', fontWeight: 600 }}>Remove</button>}
+              {photo && <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={() => setPhoto(null)}>Remove</Button>}
             </div>
           </div>
         </div>
       </Card>
 
       <Card title={`Items (${rows.length})`} padding={0} style={{ overflow: 'visible' }}
-        actions={<span style={{ color: 'var(--muted)', fontSize: 13 }}>Type each line's total as printed. Fruit by weight? Count the pieces.</span>}>
-        {rows.length === 0 && <div className="card-row" style={{ color: tried ? 'var(--danger)' : 'var(--muted)' }}>Add the items on the receipt below.</div>}
+        actions={<span className="text-xs text-muted-foreground">Type each line's total as printed. Fruit by weight? Count the pieces.</span>}>
+        {rows.length === 0 && <div className={cn('card-row', tried ? 'text-destructive' : 'text-muted-foreground')}>Add the items on the receipt below.</div>}
         {rows.map(r => {
           const errs = tried ? rowErrors(r) : { qty: false, paid: false }
           const unit = typedUnit(r), bulk = bulkOf(r)
           const per = qtyOf(r) > 0 && totalOf(r) > 0 ? totalOf(r) / qtyOf(r) : null
           return (
-            <div key={r.key} className="card-row" style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'flex-start', background: r.bought ? undefined : '#FAFAFA' }}>
-              <div style={{ flex: '1 1 170px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
+            <div key={r.key} className={cn('card-row flex flex-wrap items-start gap-3', !r.bought && 'bg-[#FAFAFA]')}>
+              <div className="flex flex-[1_1_170px] items-start justify-between gap-2.5">
                 {r.asked != null && (
-                  <input type="checkbox" checked={r.bought} aria-label={`Bought ${r.name}`}
-                    onChange={e => update(r.key, { bought: e.target.checked })}
-                    style={{ width: 22, height: 22, marginTop: 2, accentColor: INK, flexShrink: 0 }} />
+                  <Checkbox checked={r.bought} aria-label={`Bought ${r.name}`} className="mt-0.5"
+                    onChange={e => update(r.key, { bought: e.target.checked })} />
                 )}
-                <div style={{ flex: 1, minWidth: 0, opacity: r.bought ? 1 : 0.5 }}>
-                  <div style={{ fontWeight: 700 }}>{r.name}</div>
-                  <div style={{ color: 'var(--muted)', fontSize: 13 }}>
+                <div className={cn('min-w-0 flex-1', !r.bought && 'opacity-50')}>
+                  <div className="font-semibold">{r.name}</div>
+                  <div className="text-xs text-muted-foreground">
                     {r.ingredient ? `${r.ingredient.stockQty} ${r.ingredient.unit} in stock` : 'not a stock item'}
                     {r.asked != null && ` · asked ${formatQty(r.asked, r.ingredient?.unit, r.unitLabel)}`}
                   </div>
                 </div>
                 {r.asked == null && <button type="button" className="icon-btn danger" aria-label={`Remove ${r.name}`} onClick={() => setRows(rs => rs.filter(x => x.key !== r.key))}><TrashIcon /></button>}
               </div>
-              {!r.bought && <div style={{ flex: '3 1 300px', alignSelf: 'center', fontSize: 14, fontWeight: 600, color: '#B54708' }}>Not bought · stays on the shopping list</div>}
+              {!r.bought && <div className="flex-[3_1_300px] self-center"><Badge variant="warning">Not bought · stays on the shopping list</Badge></div>}
               {r.bought && <>
-              <div style={{ display: 'grid', gap: 4, flex: '1 1 170px' }}>
-                <span style={{ fontSize: 12, color: 'var(--muted)', fontWeight: 600 }}>Qty bought</span>
-                <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                  <input type="number" min="0" step="any" inputMode="decimal" value={r.qty} onChange={e => update(r.key, { qty: e.target.value })}
-                    aria-label={`Quantity of ${r.name} bought${unit ? `, in ${unit}` : ''}`} aria-invalid={errs.qty} style={{ ...input, ...bad(errs.qty), minWidth: 0 }} />
+              <div className="grid flex-[1_1_170px] gap-1.5">
+                <span className="text-xs font-medium text-muted-foreground">Qty bought</span>
+                <div className="flex items-center gap-1.5">
                   {bulk && r.ingredient
-                    ? <div role="group" aria-label={`Unit for ${r.name}`} style={{ display: 'flex', border: '1px solid var(--line)', borderRadius: 8, overflow: 'hidden', flexShrink: 0 }}>
-                        {[true, false].map(b => (
-                          <button key={String(b)} type="button" aria-pressed={r.bulk === b} onClick={() => update(r.key, { bulk: b })}
-                            style={{ border: 'none', padding: '0 10px', minHeight: 42, fontWeight: 700, background: r.bulk === b ? INK : '#fff', color: r.bulk === b ? '#fff' : 'var(--ink)' }}>
-                            {b ? bulk.unit : r.ingredient!.unit}
-                          </button>
-                        ))}
-                      </div>
-                    : unit && <span style={{ color: 'var(--muted)', fontWeight: 600 }}>{unit}</span>}
+                    ? <>
+                        <Input type="number" min="0" step="any" inputMode="decimal" value={r.qty} onChange={e => update(r.key, { qty: e.target.value })}
+                          aria-label={`Quantity of ${r.name} bought${unit ? `, in ${unit}` : ''}`} aria-invalid={errs.qty} />
+                        <ToggleGroup size="sm" label={`Unit for ${r.name}`} value={r.bulk ? 'bulk' : 'stock'} onChange={v => update(r.key, { bulk: v === 'bulk' })}
+                          options={[{ value: 'bulk', label: bulk.unit }, { value: 'stock', label: r.ingredient.unit }]} />
+                      </>
+                    : <Input type="number" min="0" step="any" inputMode="decimal" value={r.qty} onChange={e => update(r.key, { qty: e.target.value })}
+                        aria-label={`Quantity of ${r.name} bought${unit ? `, in ${unit}` : ''}`} aria-invalid={errs.qty} suffix={unit || undefined} />}
                 </div>
               </div>
-              <div style={{ display: 'grid', gap: 4, flex: '1 1 150px' }}>
-                <span style={{ fontSize: 12, color: 'var(--muted)', fontWeight: 600 }}>{r.mode === 'total' ? 'Paid (QAR)' : `Price each (QAR / ${unit || 'unit'})`}</span>
+              <div className="grid flex-[1_1_150px] gap-1.5">
+                <span className="text-xs font-medium text-muted-foreground">{r.mode === 'total' ? 'Paid' : `Price each, per ${unit || 'unit'}`}</span>
                 {r.mode === 'total'
-                  ? <input type="number" min="0" step="0.05" inputMode="decimal" value={r.paid} onChange={e => update(r.key, { paid: e.target.value })} placeholder="0.00"
-                      aria-label={`Amount paid for ${r.name}, from the receipt`} aria-invalid={errs.paid} style={{ ...input, ...bad(errs.paid) }} />
-                  : <input type="number" min="0" step="0.05" inputMode="decimal" value={r.each} onChange={e => update(r.key, { each: e.target.value })} placeholder="0.00"
-                      aria-label={`Price per ${unit || 'unit'} of ${r.name}`} aria-invalid={errs.paid} style={{ ...input, ...bad(errs.paid) }} />}
-                <button type="button" onClick={() => update(r.key, r.mode === 'total'
+                  ? <Input type="number" min="0" step="0.05" inputMode="decimal" value={r.paid} onChange={e => update(r.key, { paid: e.target.value })} placeholder="0.00"
+                      aria-label={`Amount paid for ${r.name}, from the receipt`} aria-invalid={errs.paid} suffix="QAR" />
+                  : <Input type="number" min="0" step="0.05" inputMode="decimal" value={r.each} onChange={e => update(r.key, { each: e.target.value })} placeholder="0.00"
+                      aria-label={`Price per ${unit || 'unit'} of ${r.name}`} aria-invalid={errs.paid} suffix="QAR" />}
+                <Button variant="link" className="justify-self-start text-xs" onClick={() => update(r.key, r.mode === 'total'
                   ? { mode: 'each', each: per != null ? String(round2(per)) : '' }
-                  : { mode: 'total', paid: totalOf(r) > 0 ? String(totalOf(r)) : r.paid })}
-                  style={{ justifySelf: 'start', border: 'none', background: 'none', padding: 0, minHeight: 24, color: 'var(--muted)', fontSize: 13, fontWeight: 600, textDecoration: 'underline' }}>
+                  : { mode: 'total', paid: totalOf(r) > 0 ? String(totalOf(r)) : r.paid })}>
                   {r.mode === 'total' ? 'Enter price each' : 'Enter total instead'}
-                </button>
+                </Button>
               </div>
-              <div style={{ display: 'grid', gap: 4, flex: '1 1 140px' }}>
-                <span style={{ fontSize: 12, color: 'var(--muted)', fontWeight: 600 }}>{r.mode === 'total' ? 'Per unit' : 'Line total'}</span>
-                <span style={{ fontWeight: 700, minHeight: 42, display: 'flex', alignItems: 'center' }}>
+              <div className="grid flex-[1_1_140px] justify-items-start gap-1.5">
+                <span className="text-xs font-medium text-muted-foreground">{r.mode === 'total' ? 'Per unit' : 'Line total'}</span>
+                <span className="flex h-control items-center font-semibold tabular-nums">
                   {r.mode === 'total'
                     ? (per != null ? `${formatUnitPrice(per)} / ${unit || 'each'}` : '–')
                     : formatQar(totalOf(r))}
                 </span>
                 <PriceChange row={r} />
                 {r.asked != null && qtyOf(r) > 0 && stockQtyOf(r) < r.asked && (
-                  <span style={{ fontSize: 13, fontWeight: 600, color: '#B54708' }}>{formatQty(Math.round((r.asked - stockQtyOf(r)) * 1000) / 1000, r.ingredient?.unit, r.unitLabel)} still to buy</span>
+                  <Badge variant="warning">{formatQty(Math.round((r.asked - stockQtyOf(r)) * 1000) / 1000, r.ingredient?.unit, r.unitLabel)} still to buy</Badge>
                 )}
               </div>
               </>}
             </div>
           )
         })}
-        <div style={{ padding: '14px 24px', borderTop: rows.length ? '1px solid #e5e5e5' : 'none' }}>
+        <div className={cn('px-7 py-4', rows.length > 0 && 'border-t border-divider')}>
           <ItemPicker ingredients={data.ingredients} onPick={add} {...(receiving && { label: 'Add something that was not on the list', placeholder: 'Add something that was not on the list' })} />
         </div>
-        <div style={{ position: 'sticky', bottom: 0, background: '#fff', borderTop: '1px solid #e5e5e5', borderRadius: '0 0 16px 16px', padding: '16px 24px', display: 'grid', gap: 10 }}>
-          {tried && problems.length > 0 && <div role="alert" style={errText}>Enter {problems.join(', ')}.</div>}
+        <div className="sticky bottom-0 grid gap-2.5 rounded-b-card border-t border-divider bg-card px-7 py-5">
+          {tried && problems.length > 0 && <div role="alert" className="text-sm font-semibold text-destructive">Enter {problems.join(', ')}.</div>}
           {receiving && (
-            <div aria-live="polite" style={{ fontSize: 14, fontWeight: 600 }}>
+            <div aria-live="polite" className="text-sm font-medium">
               {bought.length} of {rows.length} item{rows.length === 1 ? '' : 's'} bought
-              <span style={{ marginLeft: 8, color: stays ? '#B54708' : '#027A48' }}>{stays ? `· ${stays} stay${stays === 1 ? 's' : ''} on the shopping list` : '· nothing left on the list'}</span>
+              <span className={cn('ml-2', stays ? 'text-warning' : 'text-success')}>{stays ? `· ${stays} stay${stays === 1 ? 's' : ''} on the shopping list` : '· nothing left on the list'}</span>
             </div>
           )}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ color: 'var(--muted)', fontWeight: 600 }}>Receipt total · {paidBy}</span>
-            <strong style={{ fontSize: 22 }}>{formatQar(total)}</strong>
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-sm text-muted-foreground">Receipt total · {paidBy}</span>
+            <strong className="text-2xl font-semibold tabular-nums">{formatQar(total)}</strong>
           </div>
-          <button onClick={save} disabled={saving} aria-busy={saving}
-            style={{ background: INK, color: '#fff', border: 'none', borderRadius: 10, padding: 14, fontWeight: 800, fontSize: 16, opacity: saving ? 0.7 : 1 }}>
+          <Button size="lg" onClick={save} disabled={saving} aria-busy={saving}>
             {saving ? 'Saving…' : receiving ? 'Receive and add to stock' : 'Save purchase and add to stock'}
-          </button>
+          </Button>
         </div>
       </Card>
     </div>
@@ -389,19 +374,19 @@ function PurchaseDone({ result, before, requestNotes, onClose }: { result: Purch
   })
   const others = expense.purchase?.lines.filter(l => !l.ingredientId).map(l => l.name) ?? []
   const list = (items: string[], empty: string) => (
-    <ul style={{ margin: '6px 0 0', paddingLeft: 18, display: 'grid', gap: 4 }}>{(items.length ? items : [empty]).map(s => <li key={s}>{s}</li>)}</ul>
+    <ul className="mt-1.5 mb-0 grid gap-1 pl-[18px] text-sm tabular-nums">{(items.length ? items : [empty]).map(s => <li key={s}>{s}</li>)}</ul>
   )
   return (
-    <div style={{ display: 'grid', gap: 16, maxWidth: 1180 }}>
-      <h2 style={{ margin: 0 }}>Purchase saved</h2>
+    <div className="grid max-w-[1180px] gap-4">
+      <h2 className="m-0 text-2xl font-medium">Purchase saved</h2>
       <Card title={`Receipt ${expense.reference ?? ''} · ${expense.vendor} · ${formatQar(expense.amountQar)} · ${expense.paymentMethod}`}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 20 }}>
-          <div><strong>Stock added</strong>{list(stock, 'No stock items')}</div>
-          <div><strong>Prices updated</strong>{list(prices, 'Same prices as last time')}</div>
-          {requestNotes && <div><strong>Requests</strong>{list(requestNotes, 'No request was waiting for these')}</div>}
-          <div><strong>Expense recorded</strong>{list([`${formatQar(expense.amountQar)}, Supplies, ${expense.paymentMethod}`, ...(others.length ? [`${others.join(', ')}: expense only`] : [])], '')}</div>
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(240px,1fr))] gap-5">
+          <div><strong className="font-semibold">Stock added</strong>{list(stock, 'No stock items')}</div>
+          <div><strong className="font-semibold">Prices updated</strong>{list(prices, 'Same prices as last time')}</div>
+          {requestNotes && <div><strong className="font-semibold">Requests</strong>{list(requestNotes, 'No request was waiting for these')}</div>}
+          <div><strong className="font-semibold">Expense recorded</strong>{list([`${formatQar(expense.amountQar)}, Supplies, ${expense.paymentMethod}`, ...(others.length ? [`${others.join(', ')}: expense only`] : [])], '')}</div>
         </div>
-        <button onClick={onClose} style={{ marginTop: 20, background: INK, color: '#fff', border: 'none', borderRadius: 10, padding: '12px 18px', fontWeight: 800 }}>Back to requests</button>
+        <Button className="mt-5" onClick={onClose}>Back to requests</Button>
       </Card>
     </div>
   )
