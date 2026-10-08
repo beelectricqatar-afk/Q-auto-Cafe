@@ -6,7 +6,6 @@ import { useToast } from '../../components/Toast'
 import { formatQar } from '../../domain/money'
 import { Card } from '../../components/Card'
 import { Modal } from '../../components/Modal'
-import { TypeAhead } from '../../components/TypeAhead'
 import { TrashIcon } from './sidebarIcons'
 import { expenseDescriptionFor, requestItems, requestLines, type RequestItem } from '../../domain/requests'
 import { branchLabel } from '../../domain/branch'
@@ -16,17 +15,22 @@ import { useExpenseForm } from './useExpenseForm'
 import type { RequestsState } from './useRequests'
 import { PurchaseScreen } from './PurchaseScreen'
 import { PurchasesCard } from './PurchasesCard'
+import { RequestForm } from './RequestForm'
+import { ShoppingListCard } from './ShoppingListCard'
+import { CAFES, CAFE_LABEL, formatQty, outstanding, receive, shoppingList } from '../../domain/shoppingList'
 
 // Requests live directly in the shared cloud (the `meta` table), so every
 // device sees the same list. The list itself is held by the admin shell so the
 // sidebar badge and this screen cannot disagree.
 export function RequestsScreen({ data, state, refresh = async () => {} }: { data: Data; state: RequestsState; refresh?: () => Promise<void> }) {
   const { requests, loading, reload } = state
-  const [from, setFrom] = useState('')
-  const [message, setMessage] = useState('')
   const [viewing, setViewing] = useState<Request | null>(null)
   // Recording a purchase takes over the screen; the requests are still here after.
   const [purchasing, setPurchasing] = useState(false)
+  const [receiving, setReceiving] = useState(false)
+  // Open requests are on the shopping list unless unticked here. Kept as the
+  // ones left out, so a request arriving from another device joins the list.
+  const [leftOut, setLeftOut] = useState<Set<string>>(() => new Set())
   // Bumped when a purchase is undone, so the expense list beside it reloads.
   const [expensesVersion, setExpensesVersion] = useState(0)
   const toast = useToast()
@@ -44,11 +48,9 @@ export function RequestsScreen({ data, state, refresh = async () => {} }: { data
 
   const load = reload
 
-  const send = async () => {
-    if (!message.trim()) { toast('Type a request first', 'warn'); return }
-    const r: Request = { id: crypto.randomUUID(), timestamp: Date.now(), message: message.trim(), from: from.trim() || undefined, done: false }
-    try { await client.saveRequest(r); setMessage(''); await reload(); toast('Request sent to admin') }
-    catch { toast('Could not send (no connection)', 'warn') }
+  const send = async (r: Request) => {
+    try { await client.saveRequest(r); await reload(); toast('Request sent to admin') }
+    catch { toast('Could not send (no connection)', 'warn'); throw new Error('not sent') }
   }
   const toggle = async (r: Request) => { try { await client.saveRequest({ ...r, done: !r.done }); await reload() } catch { toast('No connection', 'warn') } }
   const remove = async (r: Request) => { try { await client.deleteRequest(r.id); await reload() } catch { toast('No connection', 'warn') } }
@@ -77,9 +79,46 @@ export function RequestsScreen({ data, state, refresh = async () => {} }: { data
   if (purchasing) return <PurchaseScreen data={data} refresh={refresh} onClose={() => setPurchasing(false)} />
 
   const openReqs = requests.filter(r => !r.done)
+  // Only requests picked item by item can be added up; older free-text ones are read by eye.
+  const listable = (r: Request) => !!r.lines?.some(l => outstanding(l) > 0)
+  const onList = openReqs.filter(r => listable(r) && !leftOut.has(r.id))
+  const toBuy = shoppingList(onList)
+
+  if (receiving) {
+    return (
+      <PurchaseScreen
+        data={data}
+        refresh={refresh}
+        onClose={() => setReceiving(false)}
+        receiving={{
+          items: toBuy,
+          onReceived: async got => {
+            const { updated, notes } = receive(onList, got)
+            for (const r of updated) await client.saveRequest(r)
+            await reload()
+            return notes
+          },
+        }}
+      />
+    )
+  }
   const doneReqs = requests.filter(r => r.done)
   /** One requested item per line — see requestLines for why the raw text can't be printed as-is. */
-  const lines = (r: Request, done: boolean) => (
+  const lines = (r: Request, done: boolean) => r.lines ? (
+    <div style={{ display: 'grid', gap: 3 }}>
+      {CAFES.filter(c => r.lines!.some(l => l.branch === c)).map(c => (
+        <div key={c} style={{ display: 'grid', gap: 3 }}>
+          <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: 0.4, textTransform: 'uppercase', color: 'var(--muted)' }}>{CAFE_LABEL[c]}</div>
+          {r.lines!.filter(l => l.branch === c).map(l => (
+            <div key={l.id} style={{ fontWeight: 600, textDecoration: done || outstanding(l) === 0 ? 'line-through' : 'none' }}>
+              {l.name} {formatQty(l.qty, l.unit, l.unitLabel)}
+              {!done && !!l.received && outstanding(l) > 0 && <span style={{ color: '#B54708', fontWeight: 600 }}> · {formatQty(outstanding(l), l.unit, l.unitLabel)} still to buy</span>}
+            </div>
+          ))}
+        </div>
+      ))}
+    </div>
+  ) : (
     <div style={{ display: 'grid', gap: 3 }}>
       {requestLines(r.message).map((line, i) => (
         <div key={i} style={{ fontWeight: 600, textDecoration: done ? 'line-through' : 'none' }}>{line}</div>
@@ -89,6 +128,16 @@ export function RequestsScreen({ data, state, refresh = async () => {} }: { data
 
   const row = (r: Request) => (
     <div key={r.id} className="card-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 }}>
+      {!r.done && listable(r) && (
+        <input
+          type="checkbox"
+          checked={!leftOut.has(r.id)}
+          onChange={e => setLeftOut(s => { const next = new Set(s); if (e.target.checked) next.delete(r.id); else next.add(r.id); return next })}
+          aria-label={`Add ${r.from ? `${r.from}'s` : 'this'} request to the shopping list`}
+          title="On the shopping list"
+          style={{ width: 22, height: 22, marginTop: 2, accentColor: '#1A1A1A', flexShrink: 0 }}
+        />
+      )}
       <button
         onClick={() => setViewing(r)}
         title="Open this request"
@@ -116,26 +165,10 @@ export function RequestsScreen({ data, state, refresh = async () => {} }: { data
           single column on a narrow screen rather than squeezing both. */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: 16, alignItems: 'start' }}>
         <div style={{ display: 'grid', gap: 16 }}>
-        {/* Card clips to its rounded corners by default, which would cut off the
-            suggestion list hanging below the textarea. */}
-        <Card title="Send a request to the admin" style={{ overflow: 'visible' }}>
-          <div style={{ display: 'grid', gap: 10 }}>
-            <input value={from} onChange={e => setFrom(e.target.value)} placeholder="Your name (optional)" style={{ padding: 10, borderRadius: 8, border: '1px solid var(--line)', fontSize: 16 }} />
-            <TypeAhead
-              value={message}
-              onChange={setMessage}
-              names={names}
-              hint={stockHint}
-              rows={3}
-              label="Request"
-              placeholder="e.g. We need more oranges, 5kg"
-              style={{ width: '100%', boxSizing: 'border-box', padding: 10, borderRadius: 8, border: '1px solid var(--line)', fontFamily: 'inherit', fontSize: 16 }}
-            />
-            <button onClick={send} style={{ background: '#1A1A1A', color: '#fff', border: 'none', borderRadius: 10, padding: 14, fontWeight: 800, fontSize: 16 }}>Send request</button>
-          </div>
-        </Card>
+        <RequestForm ingredients={data.ingredients} onSend={send} />
 
-        <Card title={`Open requests (${openReqs.length})${loading ? ' · loading…' : ''}`} padding={0}>
+        <Card title={`Open requests (${openReqs.length})${loading ? ' · loading…' : ''}`} padding={0}
+          actions={openReqs.some(listable) && <span style={{ color: 'var(--muted)', fontSize: 13 }}>Tick to add to the shopping list</span>}>
           {!loading && openReqs.length === 0 && <div className="card-row" style={{ color: 'var(--muted)' }}>No open requests.</div>}
           {openReqs.map(row)}
         </Card>
@@ -148,6 +181,7 @@ export function RequestsScreen({ data, state, refresh = async () => {} }: { data
         </div>
 
         <div style={{ display: 'grid', gap: 16 }}>
+          <ShoppingListCard items={toBuy} ingredients={data.ingredients} onReceive={() => setReceiving(true)} />
           <PurchasesCard data={data} refresh={refresh} onAdd={() => setPurchasing(true)} onChanged={() => setExpensesVersion(v => v + 1)} />
           <ExpensesPanel key={expensesVersion} state={expenseForm} names={names} hint={stockHint} />
         </div>
@@ -162,6 +196,9 @@ export function RequestsScreen({ data, state, refresh = async () => {} }: { data
               <strong style={{ color: viewing.done ? 'var(--muted)' : 'var(--ink)' }}>{viewing.done ? 'Done' : 'Open'}</strong>
             </div>
 
+            {viewing.lines ? (
+              <div style={{ border: '1px solid var(--line)', borderRadius: 12, padding: '10px 14px' }}>{lines(viewing, !!viewing.done)}</div>
+            ) : (<>
             <div style={{ color: 'var(--muted)', fontSize: 13 }}>Tap an item to start an expense for it.</div>
 
             <div style={{ display: 'grid', gap: 0, border: '1px solid var(--line)', borderRadius: 12, overflow: 'hidden' }}>
@@ -201,6 +238,7 @@ export function RequestsScreen({ data, state, refresh = async () => {} }: { data
                 ),
               )}
             </div>
+            </>)}
 
             <div style={{ display: 'flex', gap: 8 }}>
               <button
