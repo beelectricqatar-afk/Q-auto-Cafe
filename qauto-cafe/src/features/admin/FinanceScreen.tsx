@@ -14,6 +14,7 @@ import { DollarIcon, PercentIcon, InventoryIcon, TrashIcon, WalletIcon, TrendUpI
 import { Button } from '../../components/ui/button'
 import { Input, Textarea } from '../../components/ui/input'
 import { ToggleGroup } from '../../components/ui/toggle-group'
+import { useConfirm } from '../../components/ui/confirm-dialog'
 
 interface WastageForm {
   date: string
@@ -37,6 +38,7 @@ const wastageDefaults = (): WastageForm => ({
 
 export function FinanceScreen({ data }: { data: Data }) {
   const toast = useToast()
+  const { confirm, dialog } = useConfirm()
   const receiptRef = useRef<HTMLInputElement | null>(null)
   const [orders, setOrders] = useState<Order[]>([])
   const [expenses, setExpenses] = useState<FinanceExpense[]>([])
@@ -262,7 +264,7 @@ export function FinanceScreen({ data }: { data: Data }) {
                 {w.reason ? ` - ${w.reason}` : ''}
               </span>
               <strong className="font-semibold tabular-nums">{w.amountQar ? formatQar(w.amountQar) : 'No amount'}</strong>
-              <button onClick={() => removeWastage(w.id)} className="icon-btn danger" aria-label="Delete" title="Delete"><TrashIcon /></button>
+              <button onClick={async () => { if (await confirm({ title: `Delete wastage of ${w.itemName}?`, description: 'It comes out of COGS for this period.' })) await removeWastage(w.id) }} className="icon-btn danger" aria-label="Delete" title="Delete"><TrashIcon /></button>
             </div>
           ))}
         </Card>
@@ -283,11 +285,12 @@ export function FinanceScreen({ data }: { data: Data }) {
                 <span className="font-normal text-muted-foreground"> · {(r.size / 1024).toFixed(1)} KB</span>
               </a>
               <span className="text-xs text-muted-foreground">{new Date(r.uploadedAt).toLocaleDateString()}</span>
-              <button onClick={() => removeReceipt(r.id)} className="icon-btn danger" aria-label="Delete" title="Delete"><TrashIcon /></button>
+              <button onClick={async () => { if (await confirm({ title: `Delete ${r.fileName}?`, description: 'The stored receipt file is removed from every device.' })) await removeReceipt(r.id) }} className="icon-btn danger" aria-label="Delete" title="Delete"><TrashIcon /></button>
             </div>
           ))}
         </Card>
       </div>
+      {dialog}
     </div>
   )
 }

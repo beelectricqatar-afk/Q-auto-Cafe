@@ -12,6 +12,7 @@ import { Button } from '../../components/ui/button'
 import { Input, Select, Textarea, fieldClass } from '../../components/ui/input'
 import { Field } from '../../components/ui/label'
 import { Badge } from '../../components/ui/badge'
+import { useConfirm } from '../../components/ui/confirm-dialog'
 import type { ExpenseFormState } from './useExpenseForm'
 
 // Everything here is bought with petty cash, so the method is not asked for.
@@ -33,6 +34,7 @@ export function ExpensesPanel({ state, names = [], hint }: {
 }) {
   const { form, setForm, reset } = state
   const toast = useToast()
+  const { confirm, dialog } = useConfirm()
   const fileRef = useRef<HTMLInputElement | null>(null)
   const [expenses, setExpenses] = useState<FinanceExpense[]>([])
 
@@ -69,8 +71,9 @@ export function ExpensesPanel({ state, names = [], hint }: {
     toast('Expense saved')
   }
 
-  const remove = async (id: string) => {
-    await repo.remove('financeExpenses', id)
+  const remove = async (e: FinanceExpense) => {
+    if (!await confirm({ title: 'Delete this expense?', description: `${e.description || EXPENSE_CATEGORY_LABELS[e.category]} · ${formatQar(e.amountQar)}. It comes out of Finance on every device.` })) return
+    await repo.remove('financeExpenses', e.id)
     await load()
     toast('Expense deleted')
   }
@@ -153,10 +156,11 @@ export function ExpensesPanel({ state, names = [], hint }: {
                 Purchases, where all of that goes back together. */}
             {e.purchase
               ? <Badge title="Undo it under Purchases">purchase</Badge>
-              : <button onClick={() => remove(e.id)} className="icon-btn danger" aria-label="Delete" title="Delete"><TrashIcon /></button>}
+              : <button onClick={() => void remove(e)} className="icon-btn danger" aria-label="Delete" title="Delete"><TrashIcon /></button>}
           </div>
         ))}
       </Card>
+      {dialog}
     </>
   )
 }

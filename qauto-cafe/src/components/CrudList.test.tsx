@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { CrudList } from './CrudList'
 
@@ -73,5 +73,44 @@ describe('CrudList search', () => {
     setup(r => r.name)
     await user.type(screen.getByPlaceholderText(/search/i), 'zzz')
     expect(screen.getByRole('button', { name: '+ Add' })).toBeInTheDocument()
+  })
+})
+
+describe('CrudList delete', () => {
+  const show = (onDelete = vi.fn()) => {
+    render(
+      <CrudList<Row>
+        title="Inventory"
+        rows={rows}
+        fields={[{ name: 'name', label: 'Name' }]}
+        rowLabel={r => <span>{r.name}</span>}
+        empty={() => ({ name: '', unit: 'ml' })}
+        onSave={vi.fn()}
+        onDelete={onDelete}
+      />,
+    )
+    return onDelete
+  }
+
+  it('asks first, naming the row', async () => {
+    const user = userEvent.setup()
+    const onDelete = show()
+    await user.click(screen.getAllByRole('button', { name: 'Delete' })[2])
+    expect(screen.getByRole('alertdialog', { name: 'Delete Fresh Milk?' })).toBeInTheDocument()
+    expect(onDelete).not.toHaveBeenCalled()
+    await user.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Delete' }))
+    expect(onDelete).toHaveBeenCalledWith('3')
+  })
+
+  it('leaves the row alone on Cancel or Escape, with Cancel focused so Enter is safe', async () => {
+    const user = userEvent.setup()
+    const onDelete = show()
+    await user.click(screen.getAllByRole('button', { name: 'Delete' })[0])
+    expect(screen.getByRole('button', { name: 'Cancel' })).toHaveFocus()
+    await user.click(screen.getByRole('button', { name: 'Cancel' }))
+    await user.click(screen.getAllByRole('button', { name: 'Delete' })[0])
+    await user.keyboard('{Escape}')
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
+    expect(onDelete).not.toHaveBeenCalled()
   })
 })

@@ -4,6 +4,7 @@ import { repo } from '../../db/repo'
 import type { FinanceExpense } from '../../db/schema'
 import { Card } from '../../components/Card'
 import { Button } from '../../components/ui/button'
+import { useConfirm } from '../../components/ui/confirm-dialog'
 import { useToast } from '../../components/Toast'
 import { formatQar } from '../../domain/money'
 import { undoPurchase } from '../../domain/purchase'
@@ -26,7 +27,7 @@ export function PurchasesCard({ data, refresh, onAdd, onChanged }: {
 }) {
   const toast = useToast()
   const [purchases, setPurchases] = useState<FinanceExpense[]>([])
-  const [confirming, setConfirming] = useState<string | null>(null)
+  const { confirm, dialog } = useConfirm()
   const [version, setVersion] = useState(0)
 
   useEffect(() => {
@@ -38,12 +39,17 @@ export function PurchasesCard({ data, refresh, onAdd, onChanged }: {
   }, [version])
 
   const undo = async (expense: FinanceExpense) => {
+    if (!await confirm({
+      title: 'Undo this purchase?',
+      description: `${expense.vendor}${expense.reference ? ` · ${expense.reference}` : ''} · ${formatQar(expense.amountQar)}. The stock comes back out, prices go back, and the expense is removed.`,
+      confirmLabel: 'Undo purchase',
+      cancelLabel: 'Keep',
+    })) return
     const { ingredients, adjustments } = undoPurchase(expense, data.ingredients)
     for (const ing of ingredients) await repo.put('ingredients', ing)
     for (const adj of adjustments) await repo.put('inventoryAdjustments', adj)
     if (expense.purchase?.receiptFileId) await repo.remove('financeReceipts', expense.purchase.receiptFileId)
     await repo.remove('financeExpenses', expense.id)
-    setConfirming(null)
     setVersion(v => v + 1)
     onChanged?.()
     toast('Purchase undone: stock, prices and the expense are back as they were')
@@ -71,18 +77,12 @@ export function PurchasesCard({ data, refresh, onAdd, onChanged }: {
             </div>
             <div className="flex shrink-0 items-center gap-3">
               <strong className="font-semibold tabular-nums">{formatQar(p.amountQar)}</strong>
-              <button onClick={() => setConfirming(p.id)} className="icon-btn danger" aria-label={`Undo purchase ${p.reference ?? ''} from ${p.vendor}`} title="Undo this purchase"><TrashIcon /></button>
+              <button onClick={() => void undo(p)} className="icon-btn danger" aria-label={`Undo purchase ${p.reference ?? ''} from ${p.vendor}`} title="Undo this purchase"><TrashIcon /></button>
             </div>
           </div>
-          {confirming === p.id && (
-            <div role="alertdialog" aria-label="Undo this purchase" className="flex flex-wrap items-center gap-2 rounded-control border border-[#FDA29B] bg-destructive-soft p-3">
-              <span className="flex-1 text-sm font-medium">Undo this purchase? The stock comes back out, prices go back, and the expense is removed.</span>
-              <Button variant="destructive" size="sm" onClick={() => void undo(p)}>Undo purchase</Button>
-              <Button variant="outline" size="sm" onClick={() => setConfirming(null)}>Keep</Button>
-            </div>
-          )}
         </div>
       ))}
+      {dialog}
     </Card>
   )
 }

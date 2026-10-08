@@ -16,6 +16,7 @@ import type { RequestsState } from './useRequests'
 import { PurchaseScreen } from './PurchaseScreen'
 import { Button } from '../../components/ui/button'
 import { Checkbox } from '../../components/ui/checkbox'
+import { useConfirm } from '../../components/ui/confirm-dialog'
 import { cn } from '../../lib/utils'
 import { PurchasesCard } from './PurchasesCard'
 import { RequestForm } from './RequestForm'
@@ -37,6 +38,7 @@ export function RequestsScreen({ data, state, refresh = async () => {} }: { data
   // Bumped when a purchase is undone, so the expense list beside it reloads.
   const [expensesVersion, setExpensesVersion] = useState(0)
   const toast = useToast()
+  const { confirm, dialog } = useConfirm()
   // Held here rather than inside the panel so a requested item can fill it.
   const expenseForm = useExpenseForm()
 
@@ -56,7 +58,11 @@ export function RequestsScreen({ data, state, refresh = async () => {} }: { data
     catch { toast('Could not send (no connection)', 'warn'); throw new Error('not sent') }
   }
   const toggle = async (r: Request) => { try { await client.saveRequest({ ...r, done: !r.done }); await reload() } catch { toast('No connection', 'warn') } }
-  const remove = async (r: Request) => { try { await client.deleteRequest(r.id); await reload() } catch { toast('No connection', 'warn') } }
+  const remove = async (r: Request) => {
+    if (!await confirm({ title: r.from ? `Delete ${r.from}'s request?` : 'Delete this request?', description: 'It disappears from every device. Use Mark done instead if it was handled.' })) return false
+    try { await client.deleteRequest(r.id); await reload() } catch { toast('No connection', 'warn') }
+    return true
+  }
 
   /**
    * Starts an expense for one requested item.
@@ -239,13 +245,14 @@ export function RequestsScreen({ data, state, refresh = async () => {} }: { data
               <Button className="flex-1" onClick={async () => { await toggle(viewing); setViewing(null) }}>
                 {viewing.done ? 'Reopen' : 'Mark done'}
               </Button>
-              <Button variant="outline" className="border-[#FDA29B] text-destructive hover:bg-destructive-soft" onClick={async () => { await remove(viewing); setViewing(null) }}>
+              <Button variant="outline" className="border-[#FDA29B] text-destructive hover:bg-destructive-soft" onClick={async () => { if (await remove(viewing)) setViewing(null) }}>
                 Delete
               </Button>
             </div>
           </div>
         )}
       </Modal>
+      {dialog}
     </div>
   )
 }

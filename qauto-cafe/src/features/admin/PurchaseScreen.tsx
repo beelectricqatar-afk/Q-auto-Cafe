@@ -17,6 +17,7 @@ import { Badge } from '../../components/ui/badge'
 import { Checkbox } from '../../components/ui/checkbox'
 import { ToggleGroup } from '../../components/ui/toggle-group'
 import { cn } from '../../lib/utils'
+import { useConfirm } from '../../components/ui/confirm-dialog'
 const round2 = (n: number) => Math.round(n * 100) / 100
 
 /** One line of the receipt as it is being typed. Numbers stay strings until saved. */
@@ -137,7 +138,7 @@ export function PurchaseScreen({ data, refresh, onClose, receiving }: { data: Da
   const [rows, setRows] = useState<Row[]>(() => (receiving ? rowsFor(receiving.items, data.ingredients) : []))
   const [tried, setTried] = useState(false)
   const [saving, setSaving] = useState(false)
-  const [confirmLeave, setConfirmLeave] = useState(false)
+  const { confirm, dialog } = useConfirm()
   // The ingredients as they were when saved: the refresh that follows replaces `data`.
   const [result, setResult] = useState<{ outcome: PurchaseResult; before: Ingredient[]; requestNotes?: string[] } | null>(null)
   const [vendors, setVendors] = useState<string[]>([])
@@ -216,7 +217,15 @@ export function PurchaseScreen({ data, refresh, onClose, receiving }: { data: Da
     }
   }
 
-  const back = () => (dirty && !result ? setConfirmLeave(true) : onClose())
+  const back = async () => {
+    if (dirty && !result && !await confirm({
+      title: 'Leave without saving?',
+      description: 'What you have typed on this receipt will be lost.',
+      confirmLabel: 'Discard',
+      cancelLabel: 'Keep editing',
+    })) return
+    onClose()
+  }
 
   if (result) return <PurchaseDone result={result.outcome} before={result.before} requestNotes={result.requestNotes} onClose={onClose} />
 
@@ -225,20 +234,14 @@ export function PurchaseScreen({ data, refresh, onClose, receiving }: { data: Da
   return (
     <div className="grid max-w-[1180px] gap-4">
       <div>
-        <Button variant="ghost" size="sm" className="-ml-3 text-muted-foreground" onClick={back}>← Requests</Button>
+        <Button variant="ghost" size="sm" className="-ml-3 text-muted-foreground" onClick={() => void back()}>← Requests</Button>
       </div>
       <div className="flex flex-wrap items-baseline justify-between gap-3">
         <h2 className="m-0 text-2xl font-medium">{receiving ? 'Receive' : 'Add purchase'}</h2>
         <span className="text-sm text-muted-foreground">{receiving ? 'Untick anything you could not buy; it stays on the shopping list' : 'Enter it straight from the receipt'}</span>
       </div>
 
-      {confirmLeave && (
-        <div role="alertdialog" aria-label="Leave this purchase" className="flex flex-wrap items-center gap-2.5 rounded-control border border-[#FEDF89] bg-warning-soft p-4">
-          <span className="flex-1 text-sm font-medium">Leave without saving? What you have typed will be lost.</span>
-          <Button variant="outline" size="sm" onClick={onClose}>Discard</Button>
-          <Button size="sm" onClick={() => setConfirmLeave(false)}>Keep editing</Button>
-        </div>
-      )}
+      {dialog}
 
       <Card title="Receipt" actions={<span className="text-xs text-muted-foreground"><span className="text-destructive">*</span> required</span>}>
         <div className="grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-4">

@@ -120,7 +120,7 @@ describe('Add purchase', () => {
     await user.click(screen.getByRole('button', { name: '+ Add purchase' }))
     await user.type(screen.getByPlaceholderText('Type any vendor'), 'Lulu')
     await user.click(screen.getByRole('button', { name: '← Requests' }))
-    expect(screen.getByRole('alertdialog', { name: 'Leave this purchase' })).toBeInTheDocument()
+    expect(screen.getByRole('alertdialog', { name: 'Leave without saving?' })).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Discard' }))
     expect(screen.getByRole('button', { name: '+ Add purchase' })).toBeInTheDocument()
   })
