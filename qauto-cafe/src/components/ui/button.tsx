@@ -40,5 +40,6 @@ export function Button({ className, variant, size, type = 'button', ...props }: 
   return <button type={type} data-slot="button" className={cn(buttonVariants({ variant, size }), className)} {...props} />
 }
 
+/** The button look for something that is not a <button> (a file-picker label). Wrap it in cn() so a variant's border wins over the base one. */
 // eslint-disable-next-line react-refresh/only-export-components
 export { buttonVariants }

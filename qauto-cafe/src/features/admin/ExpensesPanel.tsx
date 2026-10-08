@@ -8,9 +8,11 @@ import { EXPENSE_CATEGORIES, EXPENSE_CATEGORY_LABELS, makeExpense } from '../../
 import { exportExpenseTemplate, importExpenseWorkbook } from '../../domain/financeExports'
 import { TypeAhead } from '../../components/TypeAhead'
 import { TrashIcon } from './sidebarIcons'
+import { Button } from '../../components/ui/button'
+import { Input, Select, Textarea, fieldClass } from '../../components/ui/input'
+import { Field } from '../../components/ui/label'
+import { Badge } from '../../components/ui/badge'
 import type { ExpenseFormState } from './useExpenseForm'
-
-const input = { padding: 10, borderRadius: 8, border: '1px solid var(--line)', fontSize: 15 } as const
 
 // Everything here is bought with petty cash, so the method is not asked for.
 const PAID_IN = 'Cash'
@@ -94,44 +96,63 @@ export function ExpensesPanel({ state, names = [], hint }: {
       {/* The card clips to its corners by default, which would cut off the
           description's suggestion list. */}
       <Card hoverable title="Add expense" style={{ overflow: 'visible' }}>
-        <div style={{ display: 'grid', gap: 10 }}>
-          <input type="date" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} aria-label="Expense date" style={input} />
-          <select value={form.category} onChange={e => setForm({ ...form, category: e.target.value as FinanceExpense['category'] })} aria-label="Category" style={input}>
-            {EXPENSE_CATEGORIES.map(c => <option key={c} value={c}>{EXPENSE_CATEGORY_LABELS[c]}</option>)}
-          </select>
-          <input value={form.vendor} onChange={e => setForm({ ...form, vendor: e.target.value })} placeholder="Vendor" style={input} />
-          <TypeAhead
-            value={form.description}
-            onChange={description => setForm({ ...form, description })}
-            names={names}
-            hint={hint}
-            label="Description"
-            placeholder="Description"
-            style={{ ...input, width: '100%', boxSizing: 'border-box' }}
-          />
-          <input type="number" value={form.amountQar} onChange={e => setForm({ ...form, amountQar: e.target.value })} placeholder="Amount QAR" style={input} />
-          <input value={form.reference} onChange={e => setForm({ ...form, reference: e.target.value })} placeholder="Reference" style={input} />
-          <textarea value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} placeholder="Notes" rows={3} style={{ ...input, fontFamily: 'inherit' }} />
-          <button onClick={save} style={{ background: '#1A1A1A', color: '#fff', border: 'none', borderRadius: 10, padding: 12, fontWeight: 800 }}>Save expense</button>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            <button onClick={() => fileRef.current?.click()} style={{ border: '1px solid #e5e5e5', background: '#fff', borderRadius: 8, padding: '8px 12px', fontWeight: 700 }}>Import Excel</button>
-            <button onClick={exportExpenseTemplate} style={{ border: '1px solid #e5e5e5', background: '#fff', borderRadius: 8, padding: '8px 12px', fontWeight: 700 }}>Template</button>
+        <div className="grid gap-4">
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-3">
+            <Field label="Date" htmlFor="expense-date">
+              <Input id="expense-date" type="date" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} aria-label="Expense date" />
+            </Field>
+            <Field label="Category" htmlFor="expense-category">
+              <Select id="expense-category" value={form.category} onChange={e => setForm({ ...form, category: e.target.value as FinanceExpense['category'] })} aria-label="Category">
+                {EXPENSE_CATEGORIES.map(c => <option key={c} value={c}>{EXPENSE_CATEGORY_LABELS[c]}</option>)}
+              </Select>
+            </Field>
+          </div>
+          <Field label="Vendor" htmlFor="expense-vendor">
+            <Input id="expense-vendor" value={form.vendor} onChange={e => setForm({ ...form, vendor: e.target.value })} placeholder="Vendor" />
+          </Field>
+          <div className="grid gap-1.5">
+            <span className="text-sm font-medium">Description</span>
+            <TypeAhead
+              value={form.description}
+              onChange={description => setForm({ ...form, description })}
+              names={names}
+              hint={hint}
+              label="Description"
+              placeholder="Description"
+              className={fieldClass}
+            />
+          </div>
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-3">
+            <Field label="Amount" htmlFor="expense-amount">
+              <Input id="expense-amount" type="number" value={form.amountQar} onChange={e => setForm({ ...form, amountQar: e.target.value })} placeholder="Amount QAR" />
+            </Field>
+            <Field label="Reference" htmlFor="expense-reference">
+              <Input id="expense-reference" value={form.reference} onChange={e => setForm({ ...form, reference: e.target.value })} placeholder="Reference" />
+            </Field>
+          </div>
+          <Field label="Notes" htmlFor="expense-notes">
+            <Textarea id="expense-notes" value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} placeholder="Notes" rows={3} />
+          </Field>
+          <Button size="lg" onClick={save}>Save expense</Button>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" size="sm" onClick={() => fileRef.current?.click()}>Import Excel</Button>
+            <Button variant="outline" size="sm" onClick={exportExpenseTemplate}>Template</Button>
             <input ref={fileRef} type="file" accept=".xlsx,.xls" onChange={e => void importWorkbook(e.target.files?.[0])} style={{ display: 'none' }} />
           </div>
         </div>
       </Card>
 
       <Card hoverable title={`Expenses (${expenses.length})`} padding={0}>
-        {expenses.length === 0 && <div className="card-row" style={{ color: 'var(--muted)' }}>No expenses recorded yet.</div>}
+        {expenses.length === 0 && <div className="card-row text-muted-foreground">No expenses recorded yet.</div>}
         {newestFirst.map(e => (
-          <div key={e.id} className="card-row" style={{ display: 'grid', gridTemplateColumns: '110px 1fr auto auto', gap: 10, alignItems: 'center' }}>
-            <span style={{ color: 'var(--muted)' }}>{e.date}</span>
-            <span><strong>{e.description || EXPENSE_CATEGORY_LABELS[e.category]}</strong>{e.vendor ? ` - ${e.vendor}` : ''}</span>
-            <strong>{formatQar(e.amountQar)}</strong>
+          <div key={e.id} className="card-row grid grid-cols-[100px_1fr_auto_auto] items-center gap-3">
+            <span className="text-xs text-muted-foreground tabular-nums">{e.date}</span>
+            <span className="min-w-0"><strong className="font-semibold">{e.description || EXPENSE_CATEGORY_LABELS[e.category]}</strong><span className="text-muted-foreground">{e.vendor ? ` · ${e.vendor}` : ''}</span></span>
+            <strong className="font-semibold tabular-nums">{formatQar(e.amountQar)}</strong>
             {/* A purchase also moved stock and prices, so it is undone from
                 Purchases, where all of that goes back together. */}
             {e.purchase
-              ? <span title="Undo it under Purchases" style={{ fontSize: 12, fontWeight: 700, color: 'var(--muted)', background: '#F4F5F6', borderRadius: 999, padding: '4px 8px' }}>purchase</span>
+              ? <Badge title="Undo it under Purchases">purchase</Badge>
               : <button onClick={() => remove(e.id)} className="icon-btn danger" aria-label="Delete" title="Delete"><TrashIcon /></button>}
           </div>
         ))}

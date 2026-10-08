@@ -1,5 +1,6 @@
 import { useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { matchNames, replaceWordAt, wordAt } from '../domain/search'
+import { cn } from '../lib/utils'
 
 type Box = HTMLInputElement | HTMLTextAreaElement
 
@@ -15,6 +16,7 @@ interface TypeAheadProps {
   placeholder?: string
   label: string
   style?: React.CSSProperties
+  className?: string
 }
 
 /**
@@ -29,7 +31,7 @@ interface TypeAheadProps {
  * its rounded corners, so pass `style={{ overflow: 'visible' }}` to it or the
  * list is cut off.
  */
-export function TypeAhead({ value, onChange, names, hint, rows, placeholder, label, style }: TypeAheadProps) {
+export function TypeAhead({ value, onChange, names, hint, rows, placeholder, label, style, className }: TypeAheadProps) {
   const boxRef = useRef<Box>(null)
   const pendingCaret = useRef<number | null>(null)
   const [caret, setCaret] = useState(0)
@@ -80,10 +82,11 @@ export function TypeAhead({ value, onChange, names, hint, rows, placeholder, lab
     placeholder,
     'aria-label': label,
     style,
+    className: cn(className, rows && 'h-auto py-2.5'),
   }
 
   return (
-    <div style={{ position: 'relative' }}>
+    <div className="relative">
       {rows
         ? <textarea ref={boxRef as React.RefObject<HTMLTextAreaElement>} rows={rows} {...shared} />
         : <input ref={boxRef as React.RefObject<HTMLInputElement>} {...shared} />}
@@ -91,7 +94,7 @@ export function TypeAhead({ value, onChange, names, hint, rows, placeholder, lab
         <div
           role="listbox"
           aria-label={`${label} suggestions`}
-          style={{ position: 'absolute', zIndex: 5, left: 0, right: 0, top: 'calc(100% + 4px)', background: '#fff', border: '1px solid var(--line)', borderRadius: 8, boxShadow: '0 8px 24px rgba(0,0,0,.12)', overflowY: 'auto', maxHeight: 260 }}
+          className="absolute inset-x-0 top-[calc(100%+6px)] z-30 max-h-[260px] overflow-y-auto grid gap-0.5 rounded-control border border-border bg-card p-1 font-sans shadow-pop"
         >
           {suggestions.map((name, i) => (
             <button
@@ -101,10 +104,10 @@ export function TypeAhead({ value, onChange, names, hint, rows, placeholder, lab
               // The box's blur would close the list before the click lands.
               onMouseDown={e => { e.preventDefault(); accept(name) }}
               onMouseEnter={() => setHighlight(i)}
-              style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, width: '100%', textAlign: 'left', border: 'none', padding: '9px 12px', fontSize: 15, cursor: 'pointer', background: i === highlight ? '#f2f2f2' : '#fff' }}
+              className={cn('flex min-h-11 w-full cursor-pointer items-center justify-between gap-3 rounded-[8px] border-0 px-3 text-left text-sm text-foreground', i === highlight ? 'bg-muted' : 'bg-transparent hover:bg-muted')}
             >
               <span>{name}</span>
-              <span style={{ color: 'var(--muted)', fontSize: 13 }}>{hint?.(name) ?? ''}</span>
+              <span className="text-xs text-muted-foreground">{hint?.(name) ?? ''}</span>
             </button>
           ))}
         </div>

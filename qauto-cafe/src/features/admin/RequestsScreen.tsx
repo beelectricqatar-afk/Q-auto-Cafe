@@ -14,6 +14,9 @@ import { ExpensesPanel } from './ExpensesPanel'
 import { useExpenseForm } from './useExpenseForm'
 import type { RequestsState } from './useRequests'
 import { PurchaseScreen } from './PurchaseScreen'
+import { Button } from '../../components/ui/button'
+import { Checkbox } from '../../components/ui/checkbox'
+import { cn } from '../../lib/utils'
 import { PurchasesCard } from './PurchasesCard'
 import { RequestForm } from './RequestForm'
 import { ShoppingListCard } from './ShoppingListCard'
@@ -105,71 +108,70 @@ export function RequestsScreen({ data, state, refresh = async () => {} }: { data
   const doneReqs = requests.filter(r => r.done)
   /** One requested item per line — see requestLines for why the raw text can't be printed as-is. */
   const lines = (r: Request, done: boolean) => r.lines ? (
-    <div style={{ display: 'grid', gap: 3 }}>
+    <div className="grid gap-1">
       {CAFES.filter(c => r.lines!.some(l => l.branch === c)).map(c => (
-        <div key={c} style={{ display: 'grid', gap: 3 }}>
-          <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: 0.4, textTransform: 'uppercase', color: 'var(--muted)' }}>{CAFE_LABEL[c]}</div>
+        <div key={c} className="grid gap-1">
+          <div className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">{CAFE_LABEL[c]}</div>
           {r.lines!.filter(l => l.branch === c).map(l => (
-            <div key={l.id} style={{ fontWeight: 600, textDecoration: done || outstanding(l) === 0 ? 'line-through' : 'none' }}>
+            <div key={l.id} className={cn('font-medium', (done || outstanding(l) === 0) && 'line-through')}>
               {l.name} {formatQty(l.qty, l.unit, l.unitLabel)}
-              {!done && !!l.received && outstanding(l) > 0 && <span style={{ color: '#B54708', fontWeight: 600 }}> · {formatQty(outstanding(l), l.unit, l.unitLabel)} still to buy</span>}
+              {!done && !!l.received && outstanding(l) > 0 && <span className="font-semibold text-warning"> · {formatQty(outstanding(l), l.unit, l.unitLabel)} still to buy</span>}
             </div>
           ))}
         </div>
       ))}
     </div>
   ) : (
-    <div style={{ display: 'grid', gap: 3 }}>
+    <div className="grid gap-1">
       {requestLines(r.message).map((line, i) => (
-        <div key={i} style={{ fontWeight: 600, textDecoration: done ? 'line-through' : 'none' }}>{line}</div>
+        <div key={i} className={cn('font-medium', done && 'line-through')}>{line}</div>
       ))}
     </div>
   )
 
   const row = (r: Request) => (
-    <div key={r.id} className="card-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 }}>
+    <div key={r.id} className="card-row flex items-start justify-between gap-3">
       {!r.done && listable(r) && (
-        <input
-          type="checkbox"
+        <Checkbox
           checked={!leftOut.has(r.id)}
           onChange={e => setLeftOut(s => { const next = new Set(s); if (e.target.checked) next.delete(r.id); else next.add(r.id); return next })}
           aria-label={`Add ${r.from ? `${r.from}'s` : 'this'} request to the shopping list`}
           title="On the shopping list"
-          style={{ width: 22, height: 22, marginTop: 2, accentColor: '#1A1A1A', flexShrink: 0 }}
+          className="mt-0.5"
         />
       )}
       <button
         onClick={() => setViewing(r)}
         title="Open this request"
-        style={{ flex: 1, textAlign: 'left', background: 'none', border: 'none', padding: 0, font: 'inherit', cursor: 'pointer', opacity: r.done ? 0.55 : 1 }}
+        className={cn('min-h-0 flex-1 cursor-pointer border-0 bg-transparent p-0 text-left font-sans text-sm text-foreground', r.done && 'opacity-55')}
       >
         {lines(r, !!r.done)}
-        <div style={{ color: 'var(--muted)', fontSize: 13, marginTop: 4 }}>{r.from ? `${r.from} · ` : ''}{new Date(r.timestamp).toLocaleString()}</div>
+        <div className="mt-1 text-xs text-muted-foreground">{r.from ? `${r.from} · ` : ''}{new Date(r.timestamp).toLocaleString()}</div>
       </button>
-      <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-        <button onClick={() => toggle(r)} style={{ border: '1px solid #e5e5e5', background: '#fff', borderRadius: 8, padding: '6px 12px', fontWeight: 700 }}>{r.done ? 'Reopen' : 'Mark done'}</button>
+      <div className="flex shrink-0 gap-1.5">
+        <Button variant="outline" size="sm" onClick={() => toggle(r)}>{r.done ? 'Reopen' : 'Mark done'}</Button>
         <button onClick={() => remove(r)} className="icon-btn danger" aria-label="Delete" title="Delete"><TrashIcon /></button>
       </div>
     </div>
   )
 
   return (
-    <div style={{ display: 'grid', gap: 16, maxWidth: 1180 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h2 style={{ margin: 0 }}>Requests</h2>
-        <button onClick={load} style={{ border: '1px solid #e5e5e5', background: '#fff', borderRadius: 8, padding: '6px 14px', fontWeight: 700 }}>Refresh</button>
+    <div className="grid max-w-[1180px] gap-4">
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="m-0 text-2xl font-medium">Requests</h2>
+        <Button variant="outline" size="sm" onClick={load}>Refresh</Button>
       </div>
 
       {/* Requests on the left, expenses on the right — asking for stock and
           recording what was paid for it are the same errand. auto-fit drops to a
           single column on a narrow screen rather than squeezing both. */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: 16, alignItems: 'start' }}>
-        <div style={{ display: 'grid', gap: 16 }}>
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(340px,1fr))] items-start gap-4">
+        <div className="grid gap-4">
         <RequestForm ingredients={data.ingredients} onSend={send} />
 
         <Card title={`Open requests (${openReqs.length})${loading ? ' · loading…' : ''}`} padding={0}
-          actions={openReqs.some(listable) && <span style={{ color: 'var(--muted)', fontSize: 13 }}>Tick to add to the shopping list</span>}>
-          {!loading && openReqs.length === 0 && <div className="card-row" style={{ color: 'var(--muted)' }}>No open requests.</div>}
+          actions={openReqs.some(listable) && <span className="text-xs text-muted-foreground">Tick to add to the shopping list</span>}>
+          {!loading && openReqs.length === 0 && <div className="card-row text-muted-foreground">No open requests.</div>}
           {openReqs.map(row)}
         </Card>
 
@@ -180,7 +182,7 @@ export function RequestsScreen({ data, state, refresh = async () => {} }: { data
         )}
         </div>
 
-        <div style={{ display: 'grid', gap: 16 }}>
+        <div className="grid gap-4">
           <ShoppingListCard items={toBuy} ingredients={data.ingredients} onReceive={() => setReceiving(true)} />
           <PurchasesCard data={data} refresh={refresh} onAdd={() => setPurchasing(true)} onChanged={() => setExpensesVersion(v => v + 1)} />
           <ExpensesPanel key={expensesVersion} state={expenseForm} names={names} hint={stockHint} />
@@ -189,30 +191,26 @@ export function RequestsScreen({ data, state, refresh = async () => {} }: { data
 
       <Modal open={!!viewing} title="Request" onClose={() => setViewing(null)}>
         {viewing && (
-          <div style={{ display: 'grid', gap: 16 }}>
-            <div style={{ color: 'var(--muted)' }}>
-              {viewing.from ? <>From <strong style={{ color: 'var(--ink)' }}>{viewing.from}</strong> · </> : null}
+          <div className="grid gap-4">
+            <div className="text-sm text-muted-foreground">
+              {viewing.from ? <>From <strong className="font-semibold text-foreground">{viewing.from}</strong> · </> : null}
               {new Date(viewing.timestamp).toLocaleString()} ·{' '}
-              <strong style={{ color: viewing.done ? 'var(--muted)' : 'var(--ink)' }}>{viewing.done ? 'Done' : 'Open'}</strong>
+              <strong className={cn('font-semibold', viewing.done ? 'text-muted-foreground' : 'text-foreground')}>{viewing.done ? 'Done' : 'Open'}</strong>
             </div>
 
             {viewing.lines ? (
-              <div style={{ border: '1px solid var(--line)', borderRadius: 12, padding: '10px 14px' }}>{lines(viewing, !!viewing.done)}</div>
+              <div className="rounded-control border border-border px-4 py-3">{lines(viewing, !!viewing.done)}</div>
             ) : (<>
-            <div style={{ color: 'var(--muted)', fontSize: 13 }}>Tap an item to start an expense for it.</div>
+            <div className="text-xs text-muted-foreground">Tap an item to start an expense for it.</div>
 
-            <div style={{ display: 'grid', gap: 0, border: '1px solid var(--line)', borderRadius: 12, overflow: 'hidden' }}>
+            <div className="grid overflow-hidden rounded-control border border-border">
               {requestItems(viewing.message).map((item, i) =>
                 // Headings ("Audi Cafe") group the list; they are not things to
                 // buy, so they read as labels and cannot be clicked.
                 item.heading ? (
                   <div
                     key={i}
-                    style={{
-                      padding: '10px 14px', fontSize: 13, fontWeight: 800, letterSpacing: 0.4,
-                      textTransform: 'uppercase', color: 'var(--muted)', background: '#f7f7f7',
-                      borderTop: i === 0 ? 'none' : '1px solid var(--line)',
-                    }}
+                    className={cn('bg-[#FAFAFA] px-4 py-2.5 text-xs font-semibold tracking-wider text-muted-foreground uppercase', i > 0 && 'border-t border-divider')}
                   >
                     {item.text}
                   </div>
@@ -221,17 +219,14 @@ export function RequestsScreen({ data, state, refresh = async () => {} }: { data
                     key={i}
                     onClick={() => raiseExpense(item)}
                     title={`Add an expense for ${item.text}`}
-                    style={{
-                      display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10,
-                      width: '100%', textAlign: 'left', font: 'inherit', cursor: 'pointer',
-                      padding: '10px 14px', fontSize: 15, border: 'none',
-                      borderTop: i === 0 ? 'none' : '1px solid var(--line)',
-                      background: '#fff',
-                      textDecoration: viewing.done ? 'line-through' : 'none',
-                    }}
+                    className={cn(
+                      'flex min-h-11 w-full cursor-pointer items-center justify-between gap-3 border-0 bg-card px-4 text-left font-sans text-sm text-foreground hover:bg-[#FAFAFA]',
+                      i > 0 && 'border-t border-divider',
+                      viewing.done && 'line-through',
+                    )}
                   >
                     <span>{item.text}</span>
-                    <span style={{ color: 'var(--muted)', fontSize: 12, textDecoration: 'none', flexShrink: 0 }}>
+                    <span className="shrink-0 text-xs text-muted-foreground no-underline">
                       {[branchLabel(item.branch), priced(item.text)].filter(Boolean).join(' · ')}
                     </span>
                   </button>
@@ -240,19 +235,13 @@ export function RequestsScreen({ data, state, refresh = async () => {} }: { data
             </div>
             </>)}
 
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button
-                onClick={async () => { await toggle(viewing); setViewing(null) }}
-                style={{ flex: 1, background: '#1A1A1A', color: '#fff', border: 'none', borderRadius: 10, padding: 12, fontWeight: 800 }}
-              >
+            <div className="flex gap-2">
+              <Button className="flex-1" onClick={async () => { await toggle(viewing); setViewing(null) }}>
                 {viewing.done ? 'Reopen' : 'Mark done'}
-              </button>
-              <button
-                onClick={async () => { await remove(viewing); setViewing(null) }}
-                style={{ border: '1px solid var(--danger)', color: 'var(--danger)', background: '#fff', borderRadius: 10, padding: '12px 16px', fontWeight: 700 }}
-              >
+              </Button>
+              <Button variant="outline" className="border-[#FDA29B] text-destructive hover:bg-destructive-soft" onClick={async () => { await remove(viewing); setViewing(null) }}>
                 Delete
-              </button>
+              </Button>
             </div>
           </div>
         )}

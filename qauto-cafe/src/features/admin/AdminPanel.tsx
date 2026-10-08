@@ -104,7 +104,7 @@ export function AdminPanel({ data, refresh }: { data: Data; refresh: () => Promi
           {!collapsed && <span style={{ flex: 1 }}>Collapse</span>}
         </button>
       </nav>
-      <section style={{ background: '#f9fafb', padding: 20, overflow: 'auto' }}>
+      <section className="font-sans text-foreground" style={{ background: '#F1F1F0', padding: 24, overflow: 'auto' }}>
         {section === 'Dashboard' && <Dashboard data={data} />}
         {section === 'Orders' && <OrdersLogScreen data={data} refresh={refresh} />}
         {section === 'Billing' && <BillingScreen data={data} />}

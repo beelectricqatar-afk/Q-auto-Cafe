@@ -10,6 +10,9 @@ import { formatQar } from '../../domain/money'
 import { deleteOrder, type DeleteDisposition } from './deleteOrder'
 import { branchLabel } from '../../domain/branch'
 import { paymentLabel } from '../../domain/payment'
+import { Button } from '../../components/ui/button'
+import { Input, Select, Textarea } from '../../components/ui/input'
+import { Card } from '../../components/Card'
 
 const DELETE_PASSWORD = 'admin'
 
@@ -53,7 +56,7 @@ export function OrdersLogScreen({ data, refresh }: { data: Data; refresh: () => 
     { key: 'items', header: 'Items', render: o => itemsText(o) },
     { key: 'paid', header: 'Paid', render: o => paymentLabel(o.paymentMethod) || '—' },
     { key: 'total', header: 'Total', render: o => formatQar(o.total) },
-    { key: 'actions', header: '', render: o => <button onClick={() => setDeleting(o)} style={{ border: '1px solid var(--danger)', color: 'var(--danger)', background: '#fff', borderRadius: 8, padding: '6px 12px' }}>Delete</button> },
+    { key: 'actions', header: '', render: o => <Button variant="outline" size="sm" className="border-[#FDA29B] text-destructive hover:bg-destructive-soft" onClick={() => setDeleting(o)}>Delete</Button> },
   ]
   const exportXls = () => exportXlsx(
     'orders.xlsx', 'Orders',
@@ -71,38 +74,38 @@ export function OrdersLogScreen({ data, refresh }: { data: Data; refresh: () => 
     { totals: { time: 'TOTAL', cafe: '', person: '', department: '', items: `${filtered.length} order(s)`, total: filtered.reduce((s, o) => s + o.total, 0) } },
   )
   return (
-    <div style={{ display: 'grid', gap: 12 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
-        <h2 style={{ margin: 0 }}>Orders Log</h2>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <input value={person} onChange={e => setPerson(e.target.value)} placeholder="Search person…" style={{ padding: 8, borderRadius: 8, border: '1px solid var(--line)', minWidth: 200 }} />
-          <select value={dept} onChange={e => setDept(e.target.value)} style={{ padding: 8, borderRadius: 8, border: '1px solid var(--line)' }}>
+    <div className="grid gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 className="m-0 text-2xl font-medium">Orders Log</h2>
+        <div className="flex flex-wrap gap-2">
+          <Input value={person} onChange={e => setPerson(e.target.value)} placeholder="Search person…" className="w-56" />
+          <Select value={dept} onChange={e => setDept(e.target.value)} aria-label="Department" className="w-auto">
             <option value="">All departments</option>
             {data.departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-          </select>
-          <button onClick={exportXls} style={{ background: '#1A1A1A', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px', fontWeight: 700 }}>Export Excel</button>
+          </Select>
+          <Button onClick={exportXls}>Export Excel</Button>
         </div>
       </div>
-      <div style={{ color: 'var(--muted)' }}>
-        {person.trim() || dept ? <>Showing <strong>{filtered.length}</strong> order(s) · <strong>{formatQar(filteredTotal)}</strong></> : <>{filtered.length} order(s) · {formatQar(filteredTotal)} total</>}
+      <div className="text-sm text-muted-foreground">
+        {person.trim() || dept ? <>Showing <strong className="font-semibold text-foreground">{filtered.length}</strong> order(s) · <strong className="font-semibold text-foreground">{formatQar(filteredTotal)}</strong></> : <>{filtered.length} order(s) · {formatQar(filteredTotal)} total</>}
       </div>
-      <div style={{ background: '#fff', borderRadius: 'var(--radius)', padding: 12 }}><DataTable columns={cols} rows={filtered} /></div>
+      <Card padding={12}><DataTable columns={cols} rows={filtered} /></Card>
 
       <Modal open={!!deleting} title="Delete order" onClose={closeDelete}>
         {deleting && (
-          <div style={{ display: 'grid', gap: 12 }}>
-            <div style={{ color: 'var(--muted)' }}>
+          <div className="grid gap-4">
+            <div className="text-sm text-muted-foreground">
               {new Date(deleting.timestamp).toLocaleString()} · {staffName(deleting)} · {formatQar(deleting.total)}<br />
               {deleting.lines.map(l => `${l.qty}× ${l.name}`).join(', ')}
             </div>
-            <label style={{ display: 'grid', gap: 4, fontWeight: 600 }}>Admin password
-              <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Password" style={{ padding: 10, borderRadius: 8, border: '1px solid var(--line)' }} />
+            <label className="grid gap-1.5 text-sm font-medium">Admin password
+              <Input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Password" />
             </label>
-            <label style={{ display: 'grid', gap: 4, fontWeight: 600 }}>Reason for deletion
-              <textarea value={reason} onChange={e => setReason(e.target.value)} rows={3} placeholder="Why is this order being deleted?" style={{ padding: 10, borderRadius: 8, border: '1px solid var(--line)', fontFamily: 'inherit' }} />
+            <label className="grid gap-1.5 text-sm font-medium">Reason for deletion
+              <Textarea value={reason} onChange={e => setReason(e.target.value)} rows={3} placeholder="Why is this order being deleted?" />
             </label>
-            <div style={{ fontWeight: 600, marginTop: 4 }}>What happened to the stock?</div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div className="mt-1 text-sm font-medium">What happened to the stock?</div>
+            <div className="grid grid-cols-2 gap-3">
               {([
                 { key: 'restock' as const, title: 'Back to inventory', blurb: 'Never made — put the ingredients back' },
                 { key: 'wastage' as const, title: 'Wastage', blurb: `Made and thrown away — book ${formatQar(deleting.total)}` },
@@ -110,14 +113,10 @@ export function OrdersLogScreen({ data, refresh }: { data: Data; refresh: () => 
                 <button
                   key={opt.key}
                   onClick={() => confirmDelete(opt.key)}
-                  style={{
-                    aspectRatio: '1 / 1', display: 'grid', alignContent: 'center', justifyItems: 'center', gap: 8,
-                    borderRadius: 16, padding: 16, cursor: 'pointer', textAlign: 'center',
-                    border: '1px solid var(--line)', background: '#fff', color: 'var(--ink)',
-                  }}
+                  className="grid aspect-square cursor-pointer content-center justify-items-center gap-2 rounded-card border border-border bg-card p-4 text-center font-sans text-foreground transition-colors hover:border-foreground hover:bg-[#FAFAFA]"
                 >
-                  <span style={{ fontSize: 18, fontWeight: 800 }}>{opt.title}</span>
-                  <span style={{ fontSize: 13, color: 'var(--muted)' }}>{opt.blurb}</span>
+                  <span className="text-lg font-medium">{opt.title}</span>
+                  <span className="text-xs text-muted-foreground">{opt.blurb}</span>
                 </button>
               ))}
             </div>

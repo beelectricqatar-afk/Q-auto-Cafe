@@ -1,6 +1,8 @@
 import { useState, type ReactNode } from 'react'
 import { Modal } from './Modal'
 import { Card } from './Card'
+import { Button } from './ui/button'
+import { Input, Select } from './ui/input'
 import { TrashIcon } from '../features/admin/sidebarIcons'
 
 export interface Field { name: string; label: string; type?: 'text' | 'number' | 'select'; options?: { value: string; label: string }[] }
@@ -29,26 +31,25 @@ export function CrudList<T extends { id: string }>(props: {
     await onSave(row); setEditing(null)
   }
   return (
-    <div>
+    <div className="grid gap-3">
       {searchText && (
-        <input
+        <Input
           value={query}
           onChange={e => setQuery(e.target.value)}
           placeholder={searchPlaceholder ?? `Search ${title.toLowerCase()}…`}
-          style={{ width: '100%', boxSizing: 'border-box', padding: 10, marginBottom: 10, borderRadius: 8, border: '1px solid var(--line)', fontSize: 15, fontFamily: 'inherit' }}
         />
       )}
       <Card
         title={q ? `${title} (${shown.length} of ${rows.length})` : title}
         padding={0}
-        actions={<button onClick={() => open()} style={{ background: '#1A1A1A', color: '#fff', border: 'none', borderRadius: 8, padding: '9px 16px', fontWeight: 700 }}>+ Add</button>}
+        actions={<Button size="sm" onClick={() => open()}>+ Add</Button>}
       >
-        {shown.length === 0 && <div className="card-row" style={{ color: 'var(--muted)' }}>{q ? `No matches for "${query.trim()}".` : 'Nothing here yet.'}</div>}
+        {shown.length === 0 && <div className="card-row text-muted-foreground">{q ? `No matches for "${query.trim()}".` : 'Nothing here yet.'}</div>}
         {shown.map(r => (
-          <div key={r.id} className="card-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
-            <div>{rowLabel(r)}</div>
-            <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-              <button onClick={() => open(r)} style={{ border: '1px solid #e5e5e5', background: '#fff', borderRadius: 8, padding: '6px 12px', fontSize: 13, fontWeight: 600 }}>Edit</button>
+          <div key={r.id} className="card-row flex items-center justify-between gap-3">
+            <div className="min-w-0">{rowLabel(r)}</div>
+            <div className="flex shrink-0 gap-1.5">
+              <Button variant="outline" size="sm" onClick={() => open(r)}>Edit</Button>
               <button onClick={() => onDelete(r.id)} className="icon-btn danger" aria-label="Delete" title="Delete"><TrashIcon /></button>
             </div>
           </div>
@@ -56,18 +57,18 @@ export function CrudList<T extends { id: string }>(props: {
       </Card>
       <Modal open={!!editing} title={title} onClose={() => setEditing(null)}>
         {editing && (
-          <div style={{ display: 'grid', gap: 12 }}>
+          <div className="grid gap-4">
             {fields.map(f => (
-              <label key={f.name} style={{ display: 'grid', gap: 4, fontWeight: 600 }}>{f.label}
+              <label key={f.name} className="grid gap-1.5 text-sm font-medium">{f.label}
                 {f.type === 'select'
-                  ? <select value={editing[f.name] ?? ''} onChange={e => setEditing({ ...editing, [f.name]: e.target.value })} style={{ padding: 10, borderRadius: 8, border: '1px solid var(--line)' }}>
+                  ? <Select value={editing[f.name] ?? ''} onChange={e => setEditing({ ...editing, [f.name]: e.target.value })}>
                       <option value="">—</option>
                       {f.options!.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                    </select>
-                  : <input type={f.type === 'number' ? 'number' : 'text'} value={editing[f.name] ?? ''} onChange={e => setEditing({ ...editing, [f.name]: e.target.value })} style={{ padding: 10, borderRadius: 8, border: '1px solid var(--line)' }} />}
+                    </Select>
+                  : <Input type={f.type === 'number' ? 'number' : 'text'} value={editing[f.name] ?? ''} onChange={e => setEditing({ ...editing, [f.name]: e.target.value })} />}
               </label>
             ))}
-            <button onClick={save} style={{ background: '#1A1A1A', color: '#fff', border: 'none', borderRadius: 10, padding: '12px', fontWeight: 700 }}>Save</button>
+            <Button size="lg" onClick={save}>Save</Button>
           </div>
         )}
       </Modal>
