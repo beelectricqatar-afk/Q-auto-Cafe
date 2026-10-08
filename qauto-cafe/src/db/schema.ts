@@ -136,7 +136,16 @@ export interface MetaRow { key: string; value: unknown }
 // An order that was deleted by an admin, kept for audit (never exported).
 export interface DeletionLog { id: string; timestamp: number; reason: string; order: Order }
 // A free-text supply/help request from a barista to the admin.
-export interface Request { id: string; timestamp: number; message: string; from?: string; done?: boolean }
+// `message` is the request as text. A request picked item by item also has
+// `lines`, which the shopping list adds up; the message is still written from
+// them so that a device on an older version can read it.
+export interface Request { id: string; timestamp: number; message: string; from?: string; done?: boolean; lines?: RequestLine[] }
+/**
+ * One item asked for, by one cafe. `qty` and `received` are in the ingredient's
+ * stock unit (ml for milk). Something not in the inventory has no
+ * `ingredientId` and may carry its own unit as text ("boxes").
+ */
+export interface RequestLine { id: string; branch: Branch; ingredientId?: string; name: string; unit?: Unit; unitLabel?: string; qty: number; received?: number }
 
 export const DB_NAME = 'qauto_cafe'
 export const DB_VERSION = 8

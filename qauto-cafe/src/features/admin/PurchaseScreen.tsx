@@ -8,6 +8,8 @@ import { formatQar } from '../../domain/money'
 import { todayKey } from '../../domain/finance'
 import { BULK_UNIT, applyPurchase, formatUnitPrice, priceChangePct, unitPrice, type PaidBy, type PurchaseResult } from '../../domain/purchase'
 import { TrashIcon } from './sidebarIcons'
+import { formatQty, itemKey, type ShoppingItem } from '../../domain/shoppingList'
+import { ItemPicker } from '../../components/ItemPicker'
 
 const INK = '#1A1A1A'
 const input: CSSProperties = { padding: 10, borderRadius: 8, border: '1px solid var(--line)', fontSize: 16, background: '#fff', color: 'var(--ink)', width: '100%' }
@@ -28,10 +30,16 @@ interface Row {
   mode: 'total' | 'each'
   paid: string
   each: string
+  /** Asked for on the shopping list, in the stock unit. Absent for something added at the till. */
+  asked?: number
+  /** Ticked when it was actually bought. Unticked rows stay on the shopping list. */
+  bought: boolean
+  /** A unit typed on the request for something not in the inventory. */
+  unitLabel?: string
 }
 
 const bulkOf = (r: Row) => (r.ingredient ? BULK_UNIT[r.ingredient.unit] : undefined)
-const typedUnit = (r: Row) => (r.ingredient ? (r.bulk && bulkOf(r) ? bulkOf(r)!.unit : r.ingredient.unit) : '')
+const typedUnit = (r: Row) => (r.ingredient ? (r.bulk && bulkOf(r) ? bulkOf(r)!.unit : r.ingredient.unit) : r.unitLabel ?? '')
 const factor = (r: Row) => (r.bulk && bulkOf(r) ? bulkOf(r)!.factor : 1)
 const qtyOf = (r: Row) => Number(r.qty) || 0
 const totalOf = (r: Row) => (r.mode === 'total' ? Number(r.paid) || 0 : round2((Number(r.each) || 0) * qtyOf(r)))
@@ -71,61 +79,6 @@ async function readPhoto(file: File): Promise<Pick<FinanceReceipt, 'dataUrl' | '
   }
 }
 
-/**
- * Picks what was bought from the inventory, or names something that is not
- * stocked (gloves, a delivery charge) so it can still go on the receipt.
- */
-function ItemPicker({ ingredients, onPick }: { ingredients: Ingredient[]; onPick: (pick: Ingredient | string) => void }) {
-  const [query, setQuery] = useState('')
-  const [highlight, setHighlight] = useState(0)
-  const listId = useId()
-  const q = query.trim().toLowerCase()
-  const matches = q ? ingredients.filter(i => i.name.toLowerCase().includes(q)).slice(0, 6) : []
-  const options: (Ingredient | string)[] = q ? [...matches, query.trim()] : []
-  const pick = (o: Ingredient | string) => { onPick(o); setQuery(''); setHighlight(0) }
-
-  return (
-    <div style={{ position: 'relative' }}>
-      <input
-        value={query}
-        onChange={e => { setQuery(e.target.value); setHighlight(0) }}
-        onKeyDown={e => {
-          if (!options.length) return
-          if (e.key === 'ArrowDown') { e.preventDefault(); setHighlight(h => (h + 1) % options.length) }
-          else if (e.key === 'ArrowUp') { e.preventDefault(); setHighlight(h => (h - 1 + options.length) % options.length) }
-          else if (e.key === 'Enter') { e.preventDefault(); pick(options[highlight]) }
-          else if (e.key === 'Escape') setQuery('')
-        }}
-        placeholder="Add an item from the receipt, e.g. milk"
-        aria-label="Add an item from the receipt"
-        role="combobox"
-        aria-expanded={options.length > 0}
-        aria-controls={listId}
-        style={input}
-      />
-      {options.length > 0 && (
-        <div id={listId} role="listbox" style={{ position: 'absolute', left: 0, right: 0, top: 'calc(100% + 4px)', zIndex: 30, background: '#fff', border: '1px solid #e5e5e5', borderRadius: 10, boxShadow: '0 10px 30px rgba(16,24,40,.12)', overflow: 'hidden' }}>
-          {options.map((o, i) => (
-            <button
-              key={typeof o === 'string' ? 'free' : o.id}
-              type="button"
-              role="option"
-              aria-selected={i === highlight}
-              onMouseDown={e => e.preventDefault()}
-              onClick={() => pick(o)}
-              style={{ display: 'flex', justifyContent: 'space-between', gap: 12, width: '100%', textAlign: 'left', padding: '10px 14px', border: 'none', borderTop: i ? '1px solid #f0f0f0' : 'none', background: i === highlight ? '#F4F5F6' : '#fff', fontSize: 15, color: 'var(--ink)' }}
-            >
-              {typeof o === 'string'
-                ? <><span>Add “{o}” (not a stock item)</span><span style={{ color: 'var(--muted)' }}>expense only</span></>
-                : <><span style={{ fontWeight: 600 }}>{o.name}</span><span style={{ color: 'var(--muted)' }}>{o.stockQty} {o.unit} in stock</span></>}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  )
-}
-
 /** "↑ 48% from 0.90" — what changed since the last receipt, so a jump is noticed. */
 function PriceChange({ row }: { row: Row }) {
   const ing = row.ingredient
@@ -150,19 +103,42 @@ function PriceChange({ row }: { row: Row }) {
  *
  * It needs no request behind it: the team often buys something nobody asked for.
  */
-export function PurchaseScreen({ data, refresh, onClose }: { data: Data; refresh: () => Promise<void>; onClose: () => void }) {
+/** Rows for each item on the shopping list, filled with what was asked for. */
+function rowsFor(items: ShoppingItem[], ingredients: Ingredient[]): Row[] {
+  const byId = new Map(ingredients.map(i => [i.id, i]))
+  return items.map(item => {
+    const ingredient = item.ingredientId ? byId.get(item.ingredientId) : undefined
+    const bulk = ingredient && BULK_UNIT[ingredient.unit]
+    const inBulk = !!bulk && item.total >= bulk.factor
+    const qty = inBulk ? item.total / bulk!.factor : item.total
+    return {
+      key: crypto.randomUUID(), ingredient, name: item.name, unitLabel: item.unitLabel,
+      qty: String(Math.round(qty * 1000) / 1000), bulk: inBulk, mode: 'total', paid: '', each: '',
+      asked: item.total, bought: true,
+    }
+  })
+}
+
+export interface Receiving {
+  /** What is on the shopping list, to start the receipt from. */
+  items: ShoppingItem[]
+  /** Called once the purchase is saved, with what was bought per item; returns a line per request. */
+  onReceived: (bought: Map<string, number>) => Promise<string[]>
+}
+
+export function PurchaseScreen({ data, refresh, onClose, receiving }: { data: Data; refresh: () => Promise<void>; onClose: () => void; receiving?: Receiving }) {
   const toast = useToast()
   const [vendor, setVendor] = useState('')
   const [receiptNumber, setReceiptNumber] = useState('')
   const [date, setDate] = useState(() => todayKey())
   const [paidBy, setPaidBy] = useState<PaidBy>('Cash')
   const [photo, setPhoto] = useState<Awaited<ReturnType<typeof readPhoto>> | null>(null)
-  const [rows, setRows] = useState<Row[]>([])
+  const [rows, setRows] = useState<Row[]>(() => (receiving ? rowsFor(receiving.items, data.ingredients) : []))
   const [tried, setTried] = useState(false)
   const [saving, setSaving] = useState(false)
   const [confirmLeave, setConfirmLeave] = useState(false)
   // The ingredients as they were when saved: the refresh that follows replaces `data`.
-  const [result, setResult] = useState<{ outcome: PurchaseResult; before: Ingredient[] } | null>(null)
+  const [result, setResult] = useState<{ outcome: PurchaseResult; before: Ingredient[]; requestNotes?: string[] } | null>(null)
   const [vendors, setVendors] = useState<string[]>([])
   const vendorList = useId()
 
@@ -175,15 +151,16 @@ export function PurchaseScreen({ data, refresh, onClose }: { data: Data; refresh
     return () => { live = false }
   }, [])
 
-  const dirty = !!(vendor || receiptNumber || photo || rows.length)
-  const total = round2(rows.reduce((sum, r) => sum + totalOf(r), 0))
+  const dirty = !!(vendor || receiptNumber || photo || (receiving ? rows.some(r => r.paid || r.each) : rows.length))
+  const bought = rows.filter(r => r.bought)
+  const total = round2(bought.reduce((sum, r) => sum + totalOf(r), 0))
   const update = (key: string, patch: Partial<Row>) => setRows(rs => rs.map(r => (r.key === key ? { ...r, ...patch } : r)))
 
   const add = (pick: Ingredient | string) => {
     if (typeof pick !== 'string' && rows.some(r => r.ingredient?.id === pick.id)) { toast(`${pick.name} is already on the receipt`, 'warn'); return }
     const row: Row = typeof pick === 'string'
-      ? { key: crypto.randomUUID(), name: pick.charAt(0).toUpperCase() + pick.slice(1), qty: '1', bulk: false, mode: 'total', paid: '', each: '' }
-      : { key: crypto.randomUUID(), ingredient: pick, name: pick.name, qty: '', bulk: !!BULK_UNIT[pick.unit], mode: 'total', paid: '', each: '' }
+      ? { key: crypto.randomUUID(), name: pick.charAt(0).toUpperCase() + pick.slice(1), qty: '1', bulk: false, mode: 'total', paid: '', each: '', bought: true }
+      : { key: crypto.randomUUID(), ingredient: pick, name: pick.name, qty: '', bulk: !!BULK_UNIT[pick.unit], mode: 'total', paid: '', each: '', bought: true }
     setRows(rs => [...rs, row])
   }
 
@@ -192,13 +169,13 @@ export function PurchaseScreen({ data, refresh, onClose }: { data: Data; refresh
     const p: string[] = []
     if (!vendor.trim()) p.push('the vendor')
     if (!receiptNumber.trim()) p.push('the receipt number')
-    if (!rows.length) p.push('at least one item')
-    const noQty = rows.filter(r => rowErrors(r).qty).map(r => r.name)
-    const noPaid = rows.filter(r => rowErrors(r).paid).map(r => r.name)
+    if (!bought.length) p.push(receiving ? 'at least one item you bought (ticked)' : 'at least one item')
+    const noQty = bought.filter(r => rowErrors(r).qty).map(r => r.name)
+    const noPaid = bought.filter(r => rowErrors(r).paid).map(r => r.name)
     if (noQty.length) p.push(`how many for ${noQty.join(', ')}`)
     if (noPaid.length) p.push(`the amount paid for ${noPaid.join(', ')}`)
     return p
-  }, [vendor, receiptNumber, rows])
+  }, [vendor, receiptNumber, bought, receiving])
 
   const save = async () => {
     setTried(true)
@@ -208,7 +185,7 @@ export function PurchaseScreen({ data, refresh, onClose }: { data: Data; refresh
       const receiptFileId = photo ? crypto.randomUUID() : undefined
       const outcome = applyPurchase({
         date, vendor, receiptNumber, paidBy, receiptFileId,
-        lines: rows.map(r => ({ ingredientId: r.ingredient?.id, name: r.name, qty: stockQtyOf(r), totalQar: round2(totalOf(r)) })),
+        lines: bought.map(r => ({ ingredientId: r.ingredient?.id, name: r.name, qty: stockQtyOf(r), totalQar: round2(totalOf(r)) })),
       }, data.ingredients)
       if (photo && receiptFileId) {
         await repo.put<FinanceReceipt>('financeReceipts', { id: receiptFileId, uploadedAt: Date.now(), ...photo, notes: `Receipt ${receiptNumber.trim()} · ${vendor.trim()}`, expenseId: outcome.expense.id })
@@ -216,8 +193,20 @@ export function PurchaseScreen({ data, refresh, onClose }: { data: Data; refresh
       for (const ing of outcome.ingredients) await repo.put('ingredients', ing)
       for (const adj of outcome.adjustments) await repo.put('inventoryAdjustments', adj)
       await repo.put('financeExpenses', outcome.expense)
-      setResult({ outcome, before: data.ingredients })
-      toast('Purchase saved')
+      // The purchase is saved whatever happens next; the requests live in the
+      // cloud, so marking them received can fail on its own without losing it.
+      let requestNotes: string[] | undefined
+      if (receiving) {
+        const got = new Map<string, number>()
+        for (const r of bought) {
+          const key = itemKey({ ingredientId: r.ingredient?.id, name: r.name })
+          got.set(key, (got.get(key) ?? 0) + stockQtyOf(r))
+        }
+        try { requestNotes = await receiving.onReceived(got) }
+        catch { requestNotes = ['Could not update the requests (no connection). Mark them done by hand once online.'] }
+      }
+      setResult({ outcome, before: data.ingredients, requestNotes })
+      toast(receiving ? 'Received' : 'Purchase saved')
       void refresh()
     } catch {
       toast('Could not save the purchase', 'warn')
@@ -228,7 +217,9 @@ export function PurchaseScreen({ data, refresh, onClose }: { data: Data; refresh
 
   const back = () => (dirty && !result ? setConfirmLeave(true) : onClose())
 
-  if (result) return <PurchaseDone result={result.outcome} before={result.before} onClose={onClose} />
+  if (result) return <PurchaseDone result={result.outcome} before={result.before} requestNotes={result.requestNotes} onClose={onClose} />
+
+  const stays = rows.filter(r => r.asked != null && (!r.bought || stockQtyOf(r) < r.asked)).length
 
   return (
     <div style={{ display: 'grid', gap: 16, maxWidth: 1180 }}>
@@ -236,8 +227,8 @@ export function PurchaseScreen({ data, refresh, onClose }: { data: Data; refresh
         <button onClick={back} style={{ border: 'none', background: 'none', padding: 0, fontWeight: 700, color: 'var(--muted)', minHeight: 32 }}>← Requests</button>
       </div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, flexWrap: 'wrap' }}>
-        <h2 style={{ margin: 0 }}>Add purchase</h2>
-        <span style={{ color: 'var(--muted)', fontSize: 14 }}>Enter it straight from the receipt</span>
+        <h2 style={{ margin: 0 }}>{receiving ? 'Receive' : 'Add purchase'}</h2>
+        <span style={{ color: 'var(--muted)', fontSize: 14 }}>{receiving ? 'Untick anything you could not buy; it stays on the shopping list' : 'Enter it straight from the receipt'}</span>
       </div>
 
       {confirmLeave && (
@@ -297,14 +288,24 @@ export function PurchaseScreen({ data, refresh, onClose }: { data: Data; refresh
           const unit = typedUnit(r), bulk = bulkOf(r)
           const per = qtyOf(r) > 0 && totalOf(r) > 0 ? totalOf(r) / qtyOf(r) : null
           return (
-            <div key={r.key} className="card-row" style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'flex-start' }}>
+            <div key={r.key} className="card-row" style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'flex-start', background: r.bought ? undefined : '#FAFAFA' }}>
               <div style={{ flex: '1 1 170px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
-                <div>
+                {r.asked != null && (
+                  <input type="checkbox" checked={r.bought} aria-label={`Bought ${r.name}`}
+                    onChange={e => update(r.key, { bought: e.target.checked })}
+                    style={{ width: 22, height: 22, marginTop: 2, accentColor: INK, flexShrink: 0 }} />
+                )}
+                <div style={{ flex: 1, minWidth: 0, opacity: r.bought ? 1 : 0.5 }}>
                   <div style={{ fontWeight: 700 }}>{r.name}</div>
-                  <div style={{ color: 'var(--muted)', fontSize: 13 }}>{r.ingredient ? `${r.ingredient.stockQty} ${r.ingredient.unit} in stock` : 'not a stock item'}</div>
+                  <div style={{ color: 'var(--muted)', fontSize: 13 }}>
+                    {r.ingredient ? `${r.ingredient.stockQty} ${r.ingredient.unit} in stock` : 'not a stock item'}
+                    {r.asked != null && ` · asked ${formatQty(r.asked, r.ingredient?.unit, r.unitLabel)}`}
+                  </div>
                 </div>
-                <button type="button" className="icon-btn danger" aria-label={`Remove ${r.name}`} onClick={() => setRows(rs => rs.filter(x => x.key !== r.key))}><TrashIcon /></button>
+                {r.asked == null && <button type="button" className="icon-btn danger" aria-label={`Remove ${r.name}`} onClick={() => setRows(rs => rs.filter(x => x.key !== r.key))}><TrashIcon /></button>}
               </div>
+              {!r.bought && <div style={{ flex: '3 1 300px', alignSelf: 'center', fontSize: 14, fontWeight: 600, color: '#B54708' }}>Not bought · stays on the shopping list</div>}
+              {r.bought && <>
               <div style={{ display: 'grid', gap: 4, flex: '1 1 170px' }}>
                 <span style={{ fontSize: 12, color: 'var(--muted)', fontWeight: 600 }}>Qty bought</span>
                 <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
@@ -344,22 +345,32 @@ export function PurchaseScreen({ data, refresh, onClose }: { data: Data; refresh
                     : formatQar(totalOf(r))}
                 </span>
                 <PriceChange row={r} />
+                {r.asked != null && qtyOf(r) > 0 && stockQtyOf(r) < r.asked && (
+                  <span style={{ fontSize: 13, fontWeight: 600, color: '#B54708' }}>{formatQty(Math.round((r.asked - stockQtyOf(r)) * 1000) / 1000, r.ingredient?.unit, r.unitLabel)} still to buy</span>
+                )}
               </div>
+              </>}
             </div>
           )
         })}
         <div style={{ padding: '14px 24px', borderTop: rows.length ? '1px solid #e5e5e5' : 'none' }}>
-          <ItemPicker ingredients={data.ingredients} onPick={add} />
+          <ItemPicker ingredients={data.ingredients} onPick={add} {...(receiving && { label: 'Add something that was not on the list', placeholder: 'Add something that was not on the list' })} />
         </div>
         <div style={{ position: 'sticky', bottom: 0, background: '#fff', borderTop: '1px solid #e5e5e5', borderRadius: '0 0 16px 16px', padding: '16px 24px', display: 'grid', gap: 10 }}>
           {tried && problems.length > 0 && <div role="alert" style={errText}>Enter {problems.join(', ')}.</div>}
+          {receiving && (
+            <div aria-live="polite" style={{ fontSize: 14, fontWeight: 600 }}>
+              {bought.length} of {rows.length} item{rows.length === 1 ? '' : 's'} bought
+              <span style={{ marginLeft: 8, color: stays ? '#B54708' : '#027A48' }}>{stays ? `· ${stays} stay${stays === 1 ? 's' : ''} on the shopping list` : '· nothing left on the list'}</span>
+            </div>
+          )}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ color: 'var(--muted)', fontWeight: 600 }}>Receipt total · {paidBy}</span>
             <strong style={{ fontSize: 22 }}>{formatQar(total)}</strong>
           </div>
           <button onClick={save} disabled={saving} aria-busy={saving}
             style={{ background: INK, color: '#fff', border: 'none', borderRadius: 10, padding: 14, fontWeight: 800, fontSize: 16, opacity: saving ? 0.7 : 1 }}>
-            {saving ? 'Saving…' : 'Save purchase and add to stock'}
+            {saving ? 'Saving…' : receiving ? 'Receive and add to stock' : 'Save purchase and add to stock'}
           </button>
         </div>
       </Card>
@@ -368,7 +379,7 @@ export function PurchaseScreen({ data, refresh, onClose }: { data: Data; refresh
 }
 
 /** What the purchase just changed, so the person entering it can trust it worked. */
-function PurchaseDone({ result, before, onClose }: { result: PurchaseResult; before: Ingredient[]; onClose: () => void }) {
+function PurchaseDone({ result, before, requestNotes, onClose }: { result: PurchaseResult; before: Ingredient[]; requestNotes?: string[]; onClose: () => void }) {
   const { expense } = result
   const old = new Map(before.map(i => [i.id, i]))
   const stock = result.ingredients.map(i => `${i.name}: ${old.get(i.id)?.stockQty ?? 0} → ${i.stockQty} ${i.unit}`)
@@ -387,6 +398,7 @@ function PurchaseDone({ result, before, onClose }: { result: PurchaseResult; bef
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 20 }}>
           <div><strong>Stock added</strong>{list(stock, 'No stock items')}</div>
           <div><strong>Prices updated</strong>{list(prices, 'Same prices as last time')}</div>
+          {requestNotes && <div><strong>Requests</strong>{list(requestNotes, 'No request was waiting for these')}</div>}
           <div><strong>Expense recorded</strong>{list([`${formatQar(expense.amountQar)}, Supplies, ${expense.paymentMethod}`, ...(others.length ? [`${others.join(', ')}: expense only`] : [])], '')}</div>
         </div>
         <button onClick={onClose} style={{ marginTop: 20, background: INK, color: '#fff', border: 'none', borderRadius: 10, padding: '12px 18px', fontWeight: 800 }}>Back to requests</button>
