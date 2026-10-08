@@ -28,6 +28,8 @@ button{font-family:inherit;cursor:pointer;min-height:var(--tap)}
 .icon-btn.danger{color:#d92d20}
 .icon-btn.danger:hover{background:#fef3f2;border-color:#fda29b}
 .icon-btn svg{width:16px;height:16px}
+/* A free-text box with suggestions: hide the arrow that makes it look like a fixed list. */
+.free-list::-webkit-calendar-picker-indicator{display:none!important}
 .card-hoverable{transition:box-shadow .15s ease, transform .15s ease, border-color .15s ease}
 .card-hoverable:hover{box-shadow:0 6px 18px rgba(16,24,40,0.09);border-color:#d0d0d0;transform:translateY(-2px)}
 .card-hoverable.dark:hover{border-color:#333}

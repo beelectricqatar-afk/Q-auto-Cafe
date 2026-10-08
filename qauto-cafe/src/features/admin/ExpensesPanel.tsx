@@ -128,7 +128,11 @@ export function ExpensesPanel({ state, names = [], hint }: {
             <span style={{ color: 'var(--muted)' }}>{e.date}</span>
             <span><strong>{e.description || EXPENSE_CATEGORY_LABELS[e.category]}</strong>{e.vendor ? ` - ${e.vendor}` : ''}</span>
             <strong>{formatQar(e.amountQar)}</strong>
-            <button onClick={() => remove(e.id)} className="icon-btn danger" aria-label="Delete" title="Delete"><TrashIcon /></button>
+            {/* A purchase also moved stock and prices, so it is undone from
+                Purchases, where all of that goes back together. */}
+            {e.purchase
+              ? <span title="Undo it under Purchases" style={{ fontSize: 12, fontWeight: 700, color: 'var(--muted)', background: '#F4F5F6', borderRadius: 999, padding: '4px 8px' }}>purchase</span>
+              : <button onClick={() => remove(e.id)} className="icon-btn danger" aria-label="Delete" title="Delete"><TrashIcon /></button>}
           </div>
         ))}
       </Card>

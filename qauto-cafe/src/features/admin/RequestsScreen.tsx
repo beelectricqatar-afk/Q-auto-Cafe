@@ -14,15 +14,21 @@ import { estimateCost } from '../../domain/estimateCost'
 import { ExpensesPanel } from './ExpensesPanel'
 import { useExpenseForm } from './useExpenseForm'
 import type { RequestsState } from './useRequests'
+import { PurchaseScreen } from './PurchaseScreen'
+import { PurchasesCard } from './PurchasesCard'
 
 // Requests live directly in the shared cloud (the `meta` table), so every
 // device sees the same list. The list itself is held by the admin shell so the
 // sidebar badge and this screen cannot disagree.
-export function RequestsScreen({ data, state }: { data: Data; state: RequestsState }) {
+export function RequestsScreen({ data, state, refresh = async () => {} }: { data: Data; state: RequestsState; refresh?: () => Promise<void> }) {
   const { requests, loading, reload } = state
   const [from, setFrom] = useState('')
   const [message, setMessage] = useState('')
   const [viewing, setViewing] = useState<Request | null>(null)
+  // Recording a purchase takes over the screen; the requests are still here after.
+  const [purchasing, setPurchasing] = useState(false)
+  // Bumped when a purchase is undone, so the expense list beside it reloads.
+  const [expensesVersion, setExpensesVersion] = useState(0)
   const toast = useToast()
   // Held here rather than inside the panel so a requested item can fill it.
   const expenseForm = useExpenseForm()
@@ -67,6 +73,8 @@ export function RequestsScreen({ data, state }: { data: Data; state: RequestsSta
     const estimate = estimateCost(line, data.priceList)
     return estimate != null ? `~${formatQar(estimate)}` : ''
   }
+
+  if (purchasing) return <PurchaseScreen data={data} refresh={refresh} onClose={() => setPurchasing(false)} />
 
   const openReqs = requests.filter(r => !r.done)
   const doneReqs = requests.filter(r => r.done)
@@ -140,7 +148,8 @@ export function RequestsScreen({ data, state }: { data: Data; state: RequestsSta
         </div>
 
         <div style={{ display: 'grid', gap: 16 }}>
-          <ExpensesPanel state={expenseForm} names={names} hint={stockHint} />
+          <PurchasesCard data={data} refresh={refresh} onAdd={() => setPurchasing(true)} onChanged={() => setExpensesVersion(v => v + 1)} />
+          <ExpensesPanel key={expensesVersion} state={expenseForm} names={names} hint={stockHint} />
         </div>
       </div>
 

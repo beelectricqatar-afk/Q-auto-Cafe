@@ -113,7 +113,7 @@ export function AdminPanel({ data, refresh }: { data: Data; refresh: () => Promi
         {section === 'Menu & Recipes' && <MenuRecipesScreen data={data} refresh={refresh} />}
         {section === 'Directory' && <DirectoryScreen data={data} refresh={refresh} />}
         {section === 'Backup' && <BackupScreen data={data} refresh={refresh} />}
-        {section === 'Requests' && <RequestsScreen data={data} state={requests} />}
+        {section === 'Requests' && <RequestsScreen data={data} state={requests} refresh={refresh} />}
       </section>
     </div>
   )

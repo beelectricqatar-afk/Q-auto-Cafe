@@ -44,7 +44,28 @@ export interface Ingredient {
   subUnit?: Unit      // what one unit is divided into, e.g. 'slices'
   subUnitPer?: number // how many sub-units one unit yields, e.g. 10
   openSubQty?: number // sub-units left in the currently-opened unit, e.g. 6
+  /** What each purchase paid per unit, oldest first. `unitCostQar` is the latest. */
+  priceHistory?: PriceEntry[]
 }
+/** One purchase's price for an ingredient, per stock unit. */
+export interface PriceEntry { date: string; priceQar: number; vendor?: string; expenseId: string }
+/**
+ * One line of a purchase receipt. `qty` is in the ingredient's stock unit and
+ * `totalQar` is the line total printed on the receipt; the unit price follows.
+ * A line with no `ingredientId` is not a stock item — it is paid for, so it is
+ * on the expense, but it moves no stock.
+ */
+export interface PurchaseLine {
+  ingredientId?: string
+  name: string
+  unit?: Unit
+  qty: number
+  totalQar: number
+  /** The ingredient's unit cost before this purchase, so undoing it can put it back. */
+  previousUnitCostQar?: number
+}
+/** What a purchase bought, carried on the expense it created. */
+export interface PurchaseRecord { lines: PurchaseLine[]; receiptFileId?: string }
 export interface Category { id: string; name: string; sortOrder: number }
 export interface RecipeLine { ingredientId: string; qty: number }
 // `addOn` marks a free extra (chocolate flakes, an extra sugar). It shows as
@@ -82,6 +103,8 @@ export interface FinanceExpense {
   reference?: string
   notes?: string
   source: 'manual' | 'excel'
+  /** Present when the expense was recorded as a purchase: stock and prices moved with it. */
+  purchase?: PurchaseRecord
   createdAt: number
   updatedAt: number
 }
@@ -93,6 +116,8 @@ export interface FinanceReceipt {
   size: number
   dataUrl: string
   notes?: string
+  /** The purchase expense this is the receipt for. */
+  expenseId?: string
 }
 export interface FinanceWastage {
   id: string
