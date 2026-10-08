@@ -1,0 +1,62 @@
+/*
+ * The Q-Auto design system ("Calm"): white cards with no borders on a softly
+ * toned page, Montserrat at lighter weights, black as the one action colour.
+ * The components in src/components/ui are built from these tokens.
+ *
+ * Tailwind's global reset (preflight) is deliberately left out: screens that
+ * have not been converted yet keep their own styles untouched, and only an
+ * element given Tailwind classes changes.
+ */
+@layer theme, base, components, utilities;
+@import "tailwindcss/theme.css" layer(theme);
+/* The app's own base styles sit in the base layer, below the utilities, so a
+   component's classes win over them (e.g. its own height over the global
+   button min-height). Screens styled inline are unaffected: inline wins. */
+@import "./theme.css" layer(base);
+@import "tailwindcss/utilities.css" layer(utilities);
+
+@theme {
+  --font-sans: 'Montserrat', system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+  /* Colour: each one has a single job. */
+  --color-background: #F1F1F0;       /* the page behind the cards */
+  --color-card: #FFFFFF;
+  --color-foreground: #141414;       /* text, the main button, a selected option */
+  --color-primary: #141414;
+  --color-primary-foreground: #FFFFFF;
+  --color-primary-hover: #333333;
+  --color-muted: #F2F2F2;            /* soft fills: secondary button, hover, neutral badge */
+  --color-muted-hover: #EAEAEA;
+  --color-muted-foreground: #6B6B6B; /* hints and secondary text */
+  --color-border: #E3E3E3;           /* field and button outlines */
+  --color-divider: #EFEFEF;          /* lines between rows inside a card */
+  --color-border-strong: #CFCFCF;    /* hovered outline, empty checkbox */
+  --color-placeholder: #9A9A9A;
+  --color-ring: #141414;
+  --color-destructive: #E5484D;      /* delete, only */
+  --color-destructive-hover: #D63A3F;
+  --color-destructive-soft: #FEF3F2;
+  --color-success: #027A48;          /* done, price down */
+  --color-success-soft: #ECFDF3;
+  --color-warning: #B54708;          /* low, still to buy, price up */
+  --color-warning-soft: #FFFAEB;
+
+  /* Type: six sizes. */
+  --text-xs: 12px;   --text-xs--line-height: 16px;
+  --text-sm: 15px;   --text-sm--line-height: 22px;
+  --text-base: 16px; --text-base--line-height: 24px;
+  --text-lg: 20px;   --text-lg--line-height: 28px;
+  --text-2xl: 26px;  --text-2xl--line-height: 32px;
+  --text-3xl: 32px;  --text-3xl--line-height: 38px;
+
+  /* Shape. */
+  --radius-card: 24px;
+  --radius-control: 12px;
+  --radius-checkbox: 6px;
+  --shadow-card: 0 1px 2px rgba(20, 20, 20, 0.03);
+  --shadow-pop: 0 10px 30px rgba(16, 24, 40, 0.12);
+
+  /* Size: one height for every button and field, tablet friendly. */
+  --spacing-control: 48px;
+  --spacing-control-sm: 40px;
+}
