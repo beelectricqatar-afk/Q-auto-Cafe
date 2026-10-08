@@ -76,7 +76,7 @@ export function OrdersLogScreen({ data, refresh }: { data: Data; refresh: () => 
   return (
     <div className="grid gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="m-0 text-2xl font-medium">Orders Log</h2>
+        <h2 className="m-0 text-2xl font-semibold tracking-tight">Orders Log</h2>
         <div className="flex flex-wrap gap-2">
           <Input value={person} onChange={e => setPerson(e.target.value)} placeholder="Search person…" className="w-56" />
           <Select value={dept} onChange={e => setDept(e.target.value)} aria-label="Department" className="w-auto">

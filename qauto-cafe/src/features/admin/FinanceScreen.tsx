@@ -14,6 +14,7 @@ import { DollarIcon, PercentIcon, InventoryIcon, TrashIcon, WalletIcon, TrendUpI
 import { Button } from '../../components/ui/button'
 import { Input, Textarea } from '../../components/ui/input'
 import { ToggleGroup } from '../../components/ui/toggle-group'
+import { useConfirm } from '../../components/ui/confirm-dialog'
 
 interface WastageForm {
   date: string
@@ -37,6 +38,7 @@ const wastageDefaults = (): WastageForm => ({
 
 export function FinanceScreen({ data }: { data: Data }) {
   const toast = useToast()
+  const { confirm, dialog } = useConfirm()
   const receiptRef = useRef<HTMLInputElement | null>(null)
   const [orders, setOrders] = useState<Order[]>([])
   const [expenses, setExpenses] = useState<FinanceExpense[]>([])
@@ -180,7 +182,7 @@ export function FinanceScreen({ data }: { data: Data }) {
     <div className="grid gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="m-0 text-2xl font-medium">Finance</h2>
+          <h2 className="m-0 text-2xl font-semibold tracking-tight">Finance</h2>
           <div className="text-sm text-muted-foreground">{summary.range.label}</div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -228,7 +230,7 @@ export function FinanceScreen({ data }: { data: Data }) {
       {/* Without any costs logged, profit just equals sales — say so rather than
           letting a 100% margin read as a real result. */}
       {summary.cogs === 0 && summary.netSales > 0 && (
-        <div role="status" className="rounded-card border border-[#FEDF89] bg-warning-soft px-7 py-5 text-sm">
+        <div role="status" className="rounded-card border border-[#FEDF89] bg-warning-soft px-6 py-4 text-sm">
           <strong className="font-semibold text-warning">No costs recorded for this period.</strong> COGS is expenses plus wastage, and
           neither has been logged, so profit below is simply net sales. Log wastage below and
           expenses on the Requests page to make these figures meaningful.
@@ -262,13 +264,13 @@ export function FinanceScreen({ data }: { data: Data }) {
                 {w.reason ? ` - ${w.reason}` : ''}
               </span>
               <strong className="font-semibold tabular-nums">{w.amountQar ? formatQar(w.amountQar) : 'No amount'}</strong>
-              <button onClick={() => removeWastage(w.id)} className="icon-btn danger" aria-label="Delete" title="Delete"><TrashIcon /></button>
+              <button onClick={async () => { if (await confirm({ title: `Delete wastage of ${w.itemName}?`, description: 'It comes out of COGS for this period.' })) await removeWastage(w.id) }} className="icon-btn danger" aria-label="Delete" title="Delete"><TrashIcon /></button>
             </div>
           ))}
         </Card>
 
         <Card hoverable title="Receipt archive" padding={0} style={{ gridColumn: '1 / -1' }}>
-          <div className="grid gap-2 px-7 pt-2 pb-5">
+          <div className="grid gap-2 px-6 pt-2 pb-5">
             <div className="flex flex-wrap gap-2">
               <Button size="sm" onClick={() => receiptRef.current?.click()}>Upload receipt</Button>
               <input ref={receiptRef} type="file" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx" capture="environment" multiple onChange={e => void storeReceiptFiles(e.target.files)} style={{ display: 'none' }} />
@@ -283,11 +285,12 @@ export function FinanceScreen({ data }: { data: Data }) {
                 <span className="font-normal text-muted-foreground"> · {(r.size / 1024).toFixed(1)} KB</span>
               </a>
               <span className="text-xs text-muted-foreground">{new Date(r.uploadedAt).toLocaleDateString()}</span>
-              <button onClick={() => removeReceipt(r.id)} className="icon-btn danger" aria-label="Delete" title="Delete"><TrashIcon /></button>
+              <button onClick={async () => { if (await confirm({ title: `Delete ${r.fileName}?`, description: 'The stored receipt file is removed from every device.' })) await removeReceipt(r.id) }} className="icon-btn danger" aria-label="Delete" title="Delete"><TrashIcon /></button>
             </div>
           ))}
         </Card>
       </div>
+      {dialog}
     </div>
   )
 }

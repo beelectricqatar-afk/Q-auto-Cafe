@@ -13,8 +13,8 @@ export function MetricCard({ icon: Icon, label, value, tone = 'normal', valueSiz
 }) {
   const color = tone === 'good' ? 'text-success' : tone === 'bad' ? 'text-destructive' : 'text-foreground'
   return (
-    <div className="card-hoverable flex h-full flex-col gap-5 rounded-card bg-card p-7 font-sans shadow-card" style={style}>
-      <div className="flex size-12 items-center justify-center rounded-control bg-muted text-foreground">
+    <div className="card-hoverable flex h-full flex-col gap-4 rounded-card bg-card p-6 font-sans shadow-card" style={style}>
+      <div className="flex size-10 items-center justify-center rounded-control bg-muted text-foreground">
         <Icon className="metric-card-icon" />
       </div>
       <div>

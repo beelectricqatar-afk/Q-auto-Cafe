@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { ExpensesPanel } from './ExpensesPanel'
 import { useExpenseForm } from './useExpenseForm'
@@ -68,15 +68,29 @@ describe('ExpensesPanel', () => {
     expect((screen.getByPlaceholderText('Description') as HTMLInputElement).value).toBe('Nothing')
   })
 
-  it('deletes an expense', async () => {
+  it('deletes an expense once the delete is confirmed', async () => {
     await repo.put('financeExpenses', makeExpense({ date: today(), category: 'supplies', vendor: '', description: 'Straws', amountQar: 15, paymentMethod: 'Cash' }))
     render(<Panel />)
 
     await screen.findByText(/Expenses \(1\)/)
     await user.click(screen.getByLabelText('Delete'))
+    expect(screen.getByRole('alertdialog', { name: 'Delete this expense?' })).toHaveTextContent('Straws · QAR 15.00')
+    await user.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Delete' }))
 
     await screen.findByText(/Expenses \(0\)/)
     expect(await repo.all<FinanceExpense>('financeExpenses')).toHaveLength(0)
+  })
+
+  it('keeps the expense when the delete is cancelled', async () => {
+    await repo.put('financeExpenses', makeExpense({ date: today(), category: 'supplies', vendor: '', description: 'Straws', amountQar: 15, paymentMethod: 'Cash' }))
+    render(<Panel />)
+
+    await screen.findByText(/Expenses \(1\)/)
+    await user.click(screen.getByLabelText('Delete'))
+    await user.click(screen.getByRole('button', { name: 'Cancel' }))
+
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
+    expect(await repo.all<FinanceExpense>('financeExpenses')).toHaveLength(1)
   })
 
   // This page has no month picker, so scoping the list to one month would hide

@@ -4,6 +4,7 @@ import { Card } from './Card'
 import { Button } from './ui/button'
 import { Input, Select } from './ui/input'
 import { TrashIcon } from '../features/admin/sidebarIcons'
+import { useConfirm } from './ui/confirm-dialog'
 
 export interface Field { name: string; label: string; type?: 'text' | 'number' | 'select'; options?: { value: string; label: string }[] }
 
@@ -22,6 +23,12 @@ export function CrudList<T extends { id: string }>(props: {
   const { title, rows, fields, rowLabel, empty, onSave, onDelete, searchText, searchPlaceholder } = props
   const [editing, setEditing] = useState<any | null>(null)
   const [query, setQuery] = useState('')
+  const { confirm, dialog } = useConfirm()
+  // Rows are named by their `name` where they have one ("Delete Fresh Milk?").
+  const nameOf = (r: T) => { const n = (r as { name?: unknown }).name; return typeof n === 'string' && n.trim() ? n.trim() : `this ${title.toLowerCase()} entry` }
+  const remove = async (r: T) => {
+    if (await confirm({ title: `Delete ${nameOf(r)}?`, description: 'This removes it from every device and cannot be undone.' })) await onDelete(r.id)
+  }
   const q = query.trim().toLowerCase()
   const shown = searchText && q ? rows.filter(r => searchText(r).toLowerCase().includes(q)) : rows
   const open = (r?: T) => setEditing(r ? { ...r } : { id: '', ...empty() })
@@ -50,7 +57,7 @@ export function CrudList<T extends { id: string }>(props: {
             <div className="min-w-0">{rowLabel(r)}</div>
             <div className="flex shrink-0 gap-1.5">
               <Button variant="outline" size="sm" onClick={() => open(r)}>Edit</Button>
-              <button onClick={() => onDelete(r.id)} className="icon-btn danger" aria-label="Delete" title="Delete"><TrashIcon /></button>
+              <button onClick={() => void remove(r)} className="icon-btn danger" aria-label="Delete" title="Delete"><TrashIcon /></button>
             </div>
           </div>
         ))}
@@ -72,6 +79,7 @@ export function CrudList<T extends { id: string }>(props: {
           </div>
         )}
       </Modal>
+      {dialog}
     </div>
   )
 }

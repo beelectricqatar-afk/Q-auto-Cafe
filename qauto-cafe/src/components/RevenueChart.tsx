@@ -85,10 +85,10 @@ export function RevenueChart({ points, rangeLabel }: { points: RevenuePoint[]; r
   }
 
   return (
-    <div className="flex flex-col gap-6 rounded-card bg-card p-7 font-sans shadow-card">
+    <div className="flex flex-col gap-6 rounded-card bg-card p-6 font-sans shadow-card">
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
         <div>
-          <div className="text-lg font-medium text-foreground">Revenue</div>
+          <div className="text-base font-medium text-foreground">Revenue</div>
           {/* The window is named on the right, so this states the total only —
               lower-casing a date label also read badly ("23 jun 2026"). */}
           <div style={{ fontSize: 14, color: MUTED, lineHeight: '20px' }}>{formatQar(total)} in total</div>
