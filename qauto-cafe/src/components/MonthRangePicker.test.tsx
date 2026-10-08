@@ -96,6 +96,19 @@ describe('MonthRangePicker', () => {
     expect(onChange).toHaveBeenLastCalledWith('2026-10', '2026-10')
   })
 
+  it('opens towards the side with room, never behind the sidebar', async () => {
+    const at = (left: number) => vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({ left } as DOMRect)
+    show()
+    at(200)
+    await open()
+    expect(screen.getByRole('dialog').style.left).toBe('0px')
+    await open()
+    at(window.innerWidth - 100)
+    await open()
+    expect(screen.getByRole('dialog').style.right).toBe('0px')
+    vi.restoreAllMocks()
+  })
+
   it('closes on Escape without changing the pick', async () => {
     show()
     await open()
