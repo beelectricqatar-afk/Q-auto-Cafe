@@ -62,7 +62,7 @@ export function AdminPanel({ data, refresh }: { data: Data; refresh: () => Promi
                       padding: collapsed ? '10px' : '7px 10px', borderRadius: 8, border: 'none', textAlign: 'left',
                       background: active ? '#1A1A1A' : 'transparent',
                       color: active ? '#fff' : '#666',
-                      fontFamily: 'inherit', fontSize: 14, fontWeight: 500,
+                      fontFamily: 'Montserrat, sans-serif', fontSize: 13.5, fontWeight: 400,
                     }}
                   >
                     <Icon className="admin-nav-icon" />
@@ -95,7 +95,7 @@ export function AdminPanel({ data, refresh }: { data: Data; refresh: () => Promi
           style={{
             display: 'flex', alignItems: 'center', justifyContent: collapsed ? 'center' : 'flex-start', gap: 10, width: '100%',
             padding: collapsed ? '10px' : '7px 10px', borderRadius: 8, border: '1px solid #e5e5e5', textAlign: 'left',
-            background: '#fff', color: '#666', fontFamily: 'inherit', fontSize: 14, fontWeight: 500,
+            background: '#fff', color: '#666', fontFamily: 'Montserrat, sans-serif', fontSize: 13.5, fontWeight: 400,
           }}
         >
           <span style={{ display: 'inline-flex', transform: collapsed ? 'rotate(180deg)' : 'none', transition: 'transform .15s ease' }}>

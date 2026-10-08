@@ -8,7 +8,7 @@
 }
 *{box-sizing:border-box}
 html,body,#root{height:100%}
-body{margin:0;font-family:'Geist Variable','Geist',system-ui,sans-serif;color:var(--ink);background:var(--bg)}
+body{margin:0;font-family:'Montserrat',system-ui,sans-serif;color:var(--ink);background:var(--bg)}
 button{font-family:inherit;cursor:pointer;min-height:var(--tap)}
 :focus-visible{outline:2px solid #1A1A1A;outline-offset:1px}
 

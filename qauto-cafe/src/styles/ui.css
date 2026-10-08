@@ -1,6 +1,7 @@
 /*
  * The Q-Auto design system, in the shadcn/ui look: white surfaces, hairline
- * grey edges, Geist at 14px, black as the one action colour. Values are
+ * grey edges, 14px text, black as the one action colour — set in Montserrat,
+ * the brand's font, rather than shadcn's Geist. Values are
  * shadcn's own neutral theme; the components in src/components/ui are built
  * from these tokens.
  *
@@ -17,7 +18,7 @@
 @import "tailwindcss/utilities.css" layer(utilities);
 
 @theme {
-  --font-sans: 'Geist Variable', 'Geist', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-sans: 'Montserrat', system-ui, -apple-system, 'Segoe UI', sans-serif;
 
   /* Colour: shadcn neutral. Each one has a single job. */
   --color-background: #FFFFFF;       /* the page behind the cards */
