@@ -182,7 +182,7 @@ export function FinanceScreen({ data }: { data: Data }) {
     <div className="grid gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="m-0 text-2xl font-medium">Finance</h2>
+          <h2 className="m-0 text-2xl font-semibold tracking-tight">Finance</h2>
           <div className="text-sm text-muted-foreground">{summary.range.label}</div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -230,7 +230,7 @@ export function FinanceScreen({ data }: { data: Data }) {
       {/* Without any costs logged, profit just equals sales — say so rather than
           letting a 100% margin read as a real result. */}
       {summary.cogs === 0 && summary.netSales > 0 && (
-        <div role="status" className="rounded-card border border-[#FEDF89] bg-warning-soft px-7 py-5 text-sm">
+        <div role="status" className="rounded-card border border-[#FEDF89] bg-warning-soft px-6 py-4 text-sm">
           <strong className="font-semibold text-warning">No costs recorded for this period.</strong> COGS is expenses plus wastage, and
           neither has been logged, so profit below is simply net sales. Log wastage below and
           expenses on the Requests page to make these figures meaningful.
@@ -270,7 +270,7 @@ export function FinanceScreen({ data }: { data: Data }) {
         </Card>
 
         <Card hoverable title="Receipt archive" padding={0} style={{ gridColumn: '1 / -1' }}>
-          <div className="grid gap-2 px-7 pt-2 pb-5">
+          <div className="grid gap-2 px-6 pt-2 pb-5">
             <div className="flex flex-wrap gap-2">
               <Button size="sm" onClick={() => receiptRef.current?.click()}>Upload receipt</Button>
               <input ref={receiptRef} type="file" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx" capture="environment" multiple onChange={e => void storeReceiptFiles(e.target.files)} style={{ display: 'none' }} />

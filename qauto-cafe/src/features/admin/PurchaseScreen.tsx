@@ -237,7 +237,7 @@ export function PurchaseScreen({ data, refresh, onClose, receiving }: { data: Da
         <Button variant="ghost" size="sm" className="-ml-3 text-muted-foreground" onClick={() => void back()}>← Requests</Button>
       </div>
       <div className="flex flex-wrap items-baseline justify-between gap-3">
-        <h2 className="m-0 text-2xl font-medium">{receiving ? 'Receive' : 'Add purchase'}</h2>
+        <h2 className="m-0 text-2xl font-semibold tracking-tight">{receiving ? 'Receive' : 'Add purchase'}</h2>
         <span className="text-sm text-muted-foreground">{receiving ? 'Untick anything you could not buy; it stays on the shopping list' : 'Enter it straight from the receipt'}</span>
       </div>
 
@@ -342,10 +342,10 @@ export function PurchaseScreen({ data, refresh, onClose, receiving }: { data: Da
             </div>
           )
         })}
-        <div className={cn('px-7 py-4', rows.length > 0 && 'border-t border-divider')}>
+        <div className={cn('px-6 py-4', rows.length > 0 && 'border-t border-divider')}>
           <ItemPicker ingredients={data.ingredients} onPick={add} {...(receiving && { label: 'Add something that was not on the list', placeholder: 'Add something that was not on the list' })} />
         </div>
-        <div className="sticky bottom-0 grid gap-2.5 rounded-b-card border-t border-divider bg-card px-7 py-5">
+        <div className="sticky bottom-0 grid gap-2.5 rounded-b-card border-t border-divider bg-card px-6 py-5">
           {tried && problems.length > 0 && <div role="alert" className="text-sm font-semibold text-destructive">Enter {problems.join(', ')}.</div>}
           {receiving && (
             <div aria-live="polite" className="text-sm font-medium">
@@ -381,7 +381,7 @@ function PurchaseDone({ result, before, requestNotes, onClose }: { result: Purch
   )
   return (
     <div className="grid max-w-[1180px] gap-4">
-      <h2 className="m-0 text-2xl font-medium">Purchase saved</h2>
+      <h2 className="m-0 text-2xl font-semibold tracking-tight">Purchase saved</h2>
       <Card title={`Receipt ${expense.reference ?? ''} · ${expense.vendor} · ${formatQar(expense.amountQar)} · ${expense.paymentMethod}`}>
         <div className="grid grid-cols-[repeat(auto-fit,minmax(240px,1fr))] gap-5">
           <div><strong className="font-semibold">Stock added</strong>{list(stock, 'No stock items')}</div>

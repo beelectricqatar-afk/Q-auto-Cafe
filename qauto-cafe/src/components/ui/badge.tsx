@@ -4,7 +4,7 @@ import { cn } from '../../lib/utils'
 
 /** A short status word. The colour says how it reads: fine, needs attention, a problem. */
 const badgeVariants = cva(
-  'inline-flex h-6 shrink-0 items-center gap-1 whitespace-nowrap rounded-full border border-transparent px-2.5 font-sans text-xs font-semibold',
+  'inline-flex h-[22px] shrink-0 items-center gap-1 whitespace-nowrap rounded-md border border-transparent px-2 font-sans text-xs font-medium',
   {
     variants: {
       variant: {

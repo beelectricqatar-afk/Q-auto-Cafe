@@ -3,7 +3,7 @@ import { cn } from '../../lib/utils'
 
 /** Shared look of every typed-in field: outline, height, focus ring, error state. */
 export const fieldClass =
-  'block h-control w-full min-w-0 rounded-control border border-border bg-card px-3 font-sans text-base text-foreground transition-[border-color,box-shadow] outline-none placeholder:text-placeholder hover:border-border-strong focus:border-ring focus:shadow-[0_0_0_3px_rgba(20,20,20,0.08)] disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground aria-invalid:border-destructive aria-invalid:shadow-[0_0_0_3px_rgba(229,72,77,0.12)]'
+  'block h-control w-full min-w-0 rounded-control border border-border bg-card px-3 font-sans text-base text-foreground shadow-xs transition-[border-color,box-shadow] outline-none placeholder:text-placeholder md:text-sm focus:border-ring focus:ring-[3px] focus:ring-ring/50 disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground aria-invalid:border-destructive aria-invalid:ring-[3px] aria-invalid:ring-destructive/20'
 
 export interface InputProps extends ComponentProps<'input'> {
   /** A unit shown inside the field on the right, e.g. "QAR" or "pcs". */
@@ -16,7 +16,7 @@ export function Input({ className, suffix, ...props }: InputProps) {
   return (
     <div className="relative min-w-0">
       {input}
-      <span aria-hidden="true" className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-sm font-semibold text-muted-foreground">{suffix}</span>
+      <span aria-hidden="true" className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-sm text-muted-foreground">{suffix}</span>
     </div>
   )
 }

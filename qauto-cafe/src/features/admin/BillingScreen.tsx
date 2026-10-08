@@ -68,7 +68,7 @@ export function BillingScreen({ data }: { data: Data }) {
   return (
     <div className="grid gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="m-0 text-2xl font-medium">Billing</h2>
+        <h2 className="m-0 text-2xl font-semibold tracking-tight">Billing</h2>
         <div className="flex flex-wrap items-center gap-3">
           <Input value={person} onChange={e => setPerson(e.target.value)} placeholder="Search person or walk-in…" className="w-60" />
           <ToggleGroup
@@ -86,7 +86,7 @@ export function BillingScreen({ data }: { data: Data }) {
       <div className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">Departments — {formatQar(deptTotal)}</div>
       {shownDepts.length === 0 && <div className="text-sm text-muted-foreground">No matching department orders.</div>}
       {shownDepts.map(d => (
-        <details key={d.departmentId ?? 'none'} open={!!q} className="rounded-card bg-card px-7 py-5 shadow-card">
+        <details key={d.departmentId ?? 'none'} open={!!q} className="rounded-card bg-card px-6 py-5 shadow-card">
           <summary className="flex cursor-pointer justify-between gap-3 font-semibold">
             <span>{deptName(d.departmentId)} · {d.orderCount} order(s)</span><span className="tabular-nums">{formatQar(d.total)}</span>
           </summary>

@@ -34,7 +34,7 @@ export function Dashboard({ data }: { data: Data }) {
   return (
     <div className="grid gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="m-0 text-2xl font-medium">Dashboard</h2>
+        <h2 className="m-0 text-2xl font-semibold tracking-tight">Dashboard</h2>
         <RangePicker value={selection} onChange={setSelection} />
       </div>
 
@@ -43,7 +43,7 @@ export function Dashboard({ data }: { data: Data }) {
         <MetricCard style={{ gridColumn: '2', gridRow: '1' }} icon={DollarIcon} label="Avg order value" value={formatQar(avgOrderValue(inRange))} />
         <MetricCard style={{ gridColumn: '3', gridRow: '1' }} icon={DirectoryIcon} label="Walk-ins" value={String(walkinCount(inRange))} />
 
-        <div className="card-hoverable col-start-4 row-span-2 row-start-1 flex flex-col justify-between gap-5 rounded-card bg-primary p-7 text-primary-foreground">
+        <div className="card-hoverable col-start-4 row-span-2 row-start-1 flex flex-col justify-between gap-5 rounded-card bg-primary p-6 text-primary-foreground">
           <div className="flex size-12 items-center justify-center rounded-control bg-white/12 text-white">
             <DollarIcon className="metric-card-icon" />
           </div>
@@ -93,7 +93,7 @@ export function Dashboard({ data }: { data: Data }) {
       </div>
 
       {low.length > 0 && (
-        <div role="status" className="rounded-card border border-[#FEDF89] bg-warning-soft px-7 py-5 text-sm">
+        <div role="status" className="rounded-card border border-[#FEDF89] bg-warning-soft px-6 py-4 text-sm">
           <strong className="font-semibold text-warning">Low stock:</strong> {low.map(i => `${i.name} (${i.stockQty}${i.unit})`).join(', ')}
         </div>
       )}

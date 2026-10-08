@@ -8,8 +8,8 @@ const order = (a: string, b: string): [string, string] => (a <= b ? [a, b] : [b,
 const SHORT = Array.from({ length: 12 }, (_, m) => new Date(2000, m, 1).toLocaleString(undefined, { month: 'short' }))
 const LONG = Array.from({ length: 12 }, (_, m) => new Date(2000, m, 1).toLocaleString(undefined, { month: 'long' }))
 
-const RANGE = '#F2F2F2'
-const INK = '#141414'
+const RANGE = '#F5F5F5'
+const INK = '#171717'
 
 /**
  * One month or a run of months, picked from a year grid.
@@ -80,7 +80,7 @@ export function MonthRangePicker({ from, to, onChange, now = new Date() }: {
       inner: {
         display: 'grid', placeItems: 'center', height: '100%', borderRadius: 8, fontSize: 14, fontWeight: 600,
         background: chosen ? INK : 'transparent', color: chosen ? '#fff' : future ? '#c4c4c4' : 'var(--ink)',
-        boxShadow: k === latest && !chosen ? 'inset 0 0 0 1px #CFCFCF' : 'none',
+        boxShadow: k === latest && !chosen ? 'inset 0 0 0 1px #D4D4D4' : 'none',
       },
     }
   }
@@ -96,12 +96,12 @@ export function MonthRangePicker({ from, to, onChange, now = new Date() }: {
         onClick={() => { if (open) { close() } else { setYear(yearOf(to)); setOpen(true) } }}
         style={{
           display: 'inline-flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, minWidth: 190,
-          height: 48, minHeight: 0, padding: '0 12px', borderRadius: 12, border: `1px solid ${open ? INK : '#E3E3E3'}`, background: '#fff',
-          fontFamily: 'inherit', fontSize: 15, fontWeight: 500, color: INK, cursor: 'pointer',
+          height: 40, minHeight: 0, padding: '0 12px', borderRadius: 10, boxShadow: '0 1px 2px rgba(0,0,0,.05)', border: `1px solid ${open ? INK : '#E5E5E5'}`, background: '#fff',
+          fontFamily: 'inherit', fontSize: 14, fontWeight: 500, color: INK, cursor: 'pointer',
         }}
       >
         <span>{label}</span>
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true" style={{ color: '#6B6B6B' }}>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true" style={{ color: '#737373' }}>
           <rect x="3.5" y="5" width="17" height="15.5" rx="2.5" stroke="currentColor" strokeWidth="1.7" />
           <path d="M3.5 9.5h17M8 3v4M16 3v4" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
         </svg>
@@ -113,7 +113,7 @@ export function MonthRangePicker({ from, to, onChange, now = new Date() }: {
           aria-label="Choose a month or a run of months"
           style={{
             position: 'absolute', right: 0, top: 'calc(100% + 8px)', width: 340, maxWidth: 'calc(100vw - 32px)', zIndex: 20,
-            background: '#fff', border: '1px solid #E3E3E3', borderRadius: 16, boxShadow: '0 10px 30px rgba(16,24,40,.12)', padding: 14,
+            background: '#fff', border: '1px solid #E5E5E5', borderRadius: 14, boxShadow: '0 10px 30px rgba(0,0,0,.08)', padding: 14,
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
@@ -143,7 +143,7 @@ export function MonthRangePicker({ from, to, onChange, now = new Date() }: {
             })}
           </div>
 
-          <p style={{ margin: '10px 2px 0', fontSize: 12, color: '#6B6B6B', minHeight: 16 }}>
+          <p style={{ margin: '10px 2px 0', fontSize: 12, color: '#737373', minHeight: 16 }}>
             {anchor
               ? `${monthSpanLabel(anchor, anchor)} picked. Tap another month for a range, or Done.`
               : 'Tap a month. Tap a second month for a range.'}
@@ -161,7 +161,7 @@ export function MonthRangePicker({ from, to, onChange, now = new Date() }: {
 }
 
 const yearBtn: CSSProperties = {
-  width: 36, height: 36, minHeight: 36, borderRadius: 10, border: '1px solid #E3E3E3', background: '#fff',
+  width: 36, height: 36, minHeight: 36, borderRadius: 10, border: '1px solid #E5E5E5', background: '#fff',
   fontSize: 18, lineHeight: 1, display: 'grid', placeItems: 'center', cursor: 'pointer', color: INK,
 }
 const linkBtn: CSSProperties = {

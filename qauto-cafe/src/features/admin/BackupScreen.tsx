@@ -53,7 +53,7 @@ export function BackupScreen({ data, refresh }: { data: Data; refresh: () => Pro
 
   return (
     <div className="grid max-w-[760px] gap-4">
-      <h2 className="m-0 text-2xl font-medium">Backup & Restore</h2>
+      <h2 className="m-0 text-2xl font-semibold tracking-tight">Backup & Restore</h2>
 
       <Card title="Manual backup">
         <div className="grid gap-3">
@@ -87,7 +87,7 @@ export function BackupScreen({ data, refresh }: { data: Data; refresh: () => Pro
       </Card>
 
       <Card title="Deleted logs" padding={0}>
-        <p className="mx-7 mt-0 mb-4 text-sm text-muted-foreground">Orders removed by an admin, with reason. Not included in any export.</p>
+        <p className="mx-6 mt-0 mb-4 text-sm text-muted-foreground">Orders removed by an admin, with reason. Not included in any export.</p>
         {logs.length === 0 && <div className="card-row text-muted-foreground">No deletions logged.</div>}
         {logs.map(l => (
           <div key={l.id} className="card-row grid gap-1 text-sm">

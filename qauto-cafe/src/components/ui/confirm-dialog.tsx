@@ -63,13 +63,13 @@ function ConfirmDialog({ title, description, confirmLabel = 'Delete', cancelLabe
         aria-modal="true"
         aria-label={title}
         aria-describedby={description ? descriptionId : undefined}
-        className="grid w-[min(440px,100%)] gap-5 rounded-card bg-card p-7 text-foreground shadow-pop"
+        className="grid w-[min(440px,100%)] overflow-hidden rounded-card bg-card text-foreground shadow-pop"
       >
-        <div className="grid gap-2">
-          <h2 className="m-0 text-lg font-medium">{title}</h2>
+        <div className="grid gap-2 p-6">
+          <h2 className="m-0 text-lg leading-none font-semibold">{title}</h2>
           {description && <p id={descriptionId} className="m-0 text-sm text-muted-foreground">{description}</p>}
         </div>
-        <div className="flex flex-wrap justify-end gap-2">
+        <div className="flex flex-wrap justify-end gap-2 border-t border-divider bg-footer px-6 py-4">
           <Button ref={cancelRef} variant="outline" onClick={onCancel}>{cancelLabel}</Button>
           <Button variant={destructive ? 'destructive' : 'default'} onClick={onConfirm}>{confirmLabel}</Button>
         </div>

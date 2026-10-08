@@ -62,7 +62,7 @@ export function AdminPanel({ data, refresh }: { data: Data; refresh: () => Promi
                       padding: collapsed ? '10px' : '7px 10px', borderRadius: 8, border: 'none', textAlign: 'left',
                       background: active ? '#1A1A1A' : 'transparent',
                       color: active ? '#fff' : '#666',
-                      fontFamily: 'Montserrat, sans-serif', fontSize: 13.5, fontWeight: 400,
+                      fontFamily: 'inherit', fontSize: 14, fontWeight: 500,
                     }}
                   >
                     <Icon className="admin-nav-icon" />
@@ -95,7 +95,7 @@ export function AdminPanel({ data, refresh }: { data: Data; refresh: () => Promi
           style={{
             display: 'flex', alignItems: 'center', justifyContent: collapsed ? 'center' : 'flex-start', gap: 10, width: '100%',
             padding: collapsed ? '10px' : '7px 10px', borderRadius: 8, border: '1px solid #e5e5e5', textAlign: 'left',
-            background: '#fff', color: '#666', fontFamily: 'Montserrat, sans-serif', fontSize: 13.5, fontWeight: 400,
+            background: '#fff', color: '#666', fontFamily: 'inherit', fontSize: 14, fontWeight: 500,
           }}
         >
           <span style={{ display: 'inline-flex', transform: collapsed ? 'rotate(180deg)' : 'none', transition: 'transform .15s ease' }}>
@@ -104,7 +104,7 @@ export function AdminPanel({ data, refresh }: { data: Data; refresh: () => Promi
           {!collapsed && <span style={{ flex: 1 }}>Collapse</span>}
         </button>
       </nav>
-      <section className="font-sans text-foreground" style={{ background: '#F1F1F0', padding: 24, overflow: 'auto' }}>
+      <section className="font-sans text-foreground" style={{ background: '#FFFFFF', padding: 24, overflow: 'auto' }}>
         {section === 'Dashboard' && <Dashboard data={data} />}
         {section === 'Orders' && <OrdersLogScreen data={data} refresh={refresh} />}
         {section === 'Billing' && <BillingScreen data={data} />}

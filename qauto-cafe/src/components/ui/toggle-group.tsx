@@ -27,7 +27,7 @@ export function ToggleGroup<T extends string>({ value, onChange, options, label,
       role="group"
       aria-label={label}
       data-slot="toggle-group"
-      className={cn('inline-flex gap-1 rounded-control border border-border bg-card p-1 font-sans', fullWidth && 'flex w-full', className)}
+      className={cn('inline-flex gap-0.5 rounded-control border border-border bg-card p-[3px] font-sans shadow-xs', fullWidth && 'flex w-full', className)}
     >
       {options.map(o => {
         const on = o.value === value
@@ -38,8 +38,8 @@ export function ToggleGroup<T extends string>({ value, onChange, options, label,
             aria-pressed={on}
             onClick={() => onChange(o.value)}
             className={cn(
-              'min-h-0 cursor-pointer rounded-[8px] border-0 px-3.5 text-sm font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring',
-              size === 'sm' ? 'h-8 min-w-10 px-2.5' : 'h-[38px] min-w-16',
+              'min-h-0 cursor-pointer rounded-[7px] border-0 px-3 text-sm font-medium transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50',
+              size === 'sm' ? 'h-7 min-w-9 px-2' : 'h-8 min-w-14',
               fullWidth && 'flex-1',
               on ? 'bg-primary text-primary-foreground' : 'bg-transparent text-muted-foreground hover:bg-muted hover:text-foreground',
             )}

@@ -8,7 +8,7 @@
 }
 *{box-sizing:border-box}
 html,body,#root{height:100%}
-body{margin:0;font-family:'Montserrat',system-ui,sans-serif;color:var(--ink);background:var(--bg)}
+body{margin:0;font-family:'Geist Variable','Geist',system-ui,sans-serif;color:var(--ink);background:var(--bg)}
 button{font-family:inherit;cursor:pointer;min-height:var(--tap)}
 :focus-visible{outline:2px solid #1A1A1A;outline-offset:1px}
 
@@ -21,15 +21,15 @@ button{font-family:inherit;cursor:pointer;min-height:var(--tap)}
    alongside the branch logos on the payment cards. */
 .pay-icon{width:44px;height:44px;flex-shrink:0}
 /* Calm: rows inside a card are divided by a faint rule, the card itself has no border. */
-.card-row{border-bottom:1px solid #EFEFEF;padding:16px 28px}
+.card-row{border-bottom:1px solid #E5E5E5;padding:12px 24px}
 .card-row:last-child{border-bottom:none}
 .card-row:hover{background:#FAFAFA}
-.icon-btn{display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;min-height:0;border-radius:12px;border:1px solid #E3E3E3;background:#fff;color:#141414;flex-shrink:0;transition:background .15s,border-color .15s}
-.icon-btn:hover{background:#F2F2F2}
-.icon-btn.danger{color:#E5484D}
-.icon-btn.danger:hover{background:#FEF3F2;border-color:#FDA29B}
+.icon-btn{display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;min-height:0;border-radius:10px;border:1px solid #E5E5E5;background:#fff;color:#0A0A0A;box-shadow:0 1px 2px rgba(0,0,0,.05);flex-shrink:0;transition:background .15s,border-color .15s}
+.icon-btn:hover{background:#F5F5F5}
+.icon-btn.danger{color:#E7000B}
+.icon-btn.danger:hover{background:#FEF2F2;border-color:#FCA5A5}
 .icon-btn svg{width:16px;height:16px}
 /* A free-text box with suggestions: hide the arrow that makes it look like a fixed list. */
 .free-list::-webkit-calendar-picker-indicator{display:none!important}
 .card-hoverable{transition:box-shadow .15s ease, transform .15s ease}
-.card-hoverable:hover{box-shadow:0 8px 24px rgba(16,24,40,0.07);transform:translateY(-1px)}
+.card-hoverable:hover{box-shadow:0 0 0 1px rgba(0,0,0,0.14),0 4px 12px rgba(0,0,0,0.05)}

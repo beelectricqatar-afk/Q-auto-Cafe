@@ -164,7 +164,7 @@ export function RequestsScreen({ data, state, refresh = async () => {} }: { data
   return (
     <div className="grid max-w-[1180px] gap-4">
       <div className="flex items-center justify-between gap-3">
-        <h2 className="m-0 text-2xl font-medium">Requests</h2>
+        <h2 className="m-0 text-2xl font-semibold tracking-tight">Requests</h2>
         <Button variant="outline" size="sm" onClick={load}>Refresh</Button>
       </div>
 
