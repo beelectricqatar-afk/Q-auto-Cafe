@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import type { Data } from '../../app/useData'
 import { repo } from '../../db/repo'
 import type { Order } from '../../db/schema'
-import { aggregateBilling } from '../../domain/billing'
+import { aggregateBilling, walkinGroups as groupWalkins, walkinKey } from '../../domain/billing'
 import { formatQar } from '../../domain/money'
 import { exportXlsx } from '../../domain/xlsx'
 import { periodRange, PERIOD_LABELS, type PeriodKey } from '../../domain/dateRanges'
@@ -39,16 +39,9 @@ export function BillingScreen({ data }: { data: Data }) {
   }).filter(d => d.byPerson.length > 0), [report, q]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const walkinGroups = useMemo(() => {
-    const m = new Map<string, { name: string; total: number; orderCount: number }>()
-    for (const o of walkinInRange) {
-      const name = o.customerName?.trim() || '(no name)'
-      const g = m.get(name) ?? { name, total: 0, orderCount: 0 }
-      g.total = round2(g.total + o.total); g.orderCount++
-      m.set(name, g)
-    }
-    const all = [...m.values()].sort((a, b) => b.total - a.total)
+    const all = groupWalkins(walkinInRange, id => data.staff.find(s => s.id === id)?.name)
     return q ? all.filter(g => g.name.toLowerCase().includes(q)) : all
-  }, [walkinInRange, q])
+  }, [walkinInRange, q, data.staff])
 
   const deptTotal = round2(shownDepts.reduce((s, d) => s + d.total, 0))
   const walkinTotal = round2(walkinGroups.reduce((s, g) => s + g.total, 0))
@@ -61,9 +54,9 @@ export function BillingScreen({ data }: { data: Data }) {
   const staffStatement = (departmentId: string | null, staffId: string | null, name: string) =>
     exportStatement(`statement-${name.replace(/\s+/g, '-')}-${period}.xlsx`, `${name} · ${range.label} · `,
       orders.filter(o => !o.walkin && o.timestamp >= range.from && o.timestamp < range.to && o.staffId === staffId && o.departmentId === departmentId))
-  const walkinStatement = (name: string) =>
+  const walkinStatement = (key: string, name: string) =>
     exportStatement(`statement-walkin-${name.replace(/\s+/g, '-')}-${period}.xlsx`, `Walk-in: ${name} · ${range.label} · `,
-      walkinInRange.filter(o => (o.customerName?.trim() || '(no name)') === name))
+      walkinInRange.filter(o => walkinKey(o) === key))
 
   return (
     <div className="grid gap-4">
@@ -109,11 +102,11 @@ export function BillingScreen({ data }: { data: Data }) {
       <div className="grid rounded-card bg-card shadow-card">
         {walkinGroups.length === 0 && <span className="card-row text-muted-foreground">No matching walk-in orders.</span>}
         {walkinGroups.map(g => (
-          <div key={g.name} className="card-row flex items-center justify-between gap-2 text-sm">
+          <div key={g.key} className="card-row flex items-center justify-between gap-2 text-sm">
             <span className="font-semibold">{g.name} <span className="font-normal text-muted-foreground">({g.orderCount})</span></span>
             <span className="flex items-center gap-2.5">
               <span className="tabular-nums">{formatQar(g.total)}</span>
-              <Button variant="outline" size="sm" className="h-8 px-3 text-xs" onClick={() => walkinStatement(g.name)}>Statement</Button>
+              <Button variant="outline" size="sm" className="h-8 px-3 text-xs" onClick={() => walkinStatement(g.key, g.name)}>Statement</Button>
             </span>
           </div>
         ))}

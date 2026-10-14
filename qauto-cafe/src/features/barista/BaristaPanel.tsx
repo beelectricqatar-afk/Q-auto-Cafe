@@ -73,6 +73,7 @@ export function BaristaPanel({ data, onPlaced }: { data: Data; onPlaced: () => v
       lines: ticket.orderLines,
       walkin: source.walkin,
       customerName: source.walkinName,
+      walkinStaffId: source.walkin ? source.walkinStaffId : undefined,
       discountPct: discount ? 15 : 0,
       branch,
       paymentMethod,

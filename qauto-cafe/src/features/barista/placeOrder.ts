@@ -3,14 +3,14 @@ import { applyDeduction, computeDeductions, subDivision } from '../../domain/ded
 import { ticketTotal, applyDiscount } from '../../domain/money'
 import { OUTBOX_STORE, type Branch, type Order, type PaymentMethod, type OrderLine, type MenuItem, type Ingredient, type InventoryAdjustment, type Outbox } from '../../db/schema'
 
-export interface PlaceOrderInput { staffId: string | null; departmentId: string | null; lines: OrderLine[]; note?: string; walkin?: boolean; customerName?: string; discountPct?: number; branch?: Branch; paymentMethod?: PaymentMethod }
+export interface PlaceOrderInput { staffId: string | null; departmentId: string | null; lines: OrderLine[]; note?: string; walkin?: boolean; customerName?: string; discountPct?: number; branch?: Branch; paymentMethod?: PaymentMethod; walkinStaffId?: string; onlineOrderId?: string; id?: string }
 
 export async function placeOrder(input: PlaceOrderInput): Promise<{ order: Order }> {
   const db = await getDb()
   const items = (await db.getAll('menuItems')) as MenuItem[]
   const deductions = computeDeductions(input.lines, items)
   const order: Order = {
-    id: crypto.randomUUID(), timestamp: Date.now(),
+    id: input.id ?? crypto.randomUUID(), timestamp: Date.now(),
     staffId: input.staffId, departmentId: input.departmentId,
     lines: input.lines, total: applyDiscount(ticketTotal(input.lines), input.discountPct ?? 0), note: input.note,
     walkin: input.walkin || (!input.staffId && !input.departmentId),
@@ -18,6 +18,8 @@ export async function placeOrder(input: PlaceOrderInput): Promise<{ order: Order
     discountPct: input.discountPct || undefined,
     branch: input.branch,
     paymentMethod: input.paymentMethod,
+    ...(input.walkinStaffId && { walkinStaffId: input.walkinStaffId }),
+    ...(input.onlineOrderId && { onlineOrderId: input.onlineOrderId }),
   }
   const tx = db.transaction(['orders', 'ingredients', 'inventoryAdjustments', OUTBOX_STORE], 'readwrite')
   const out = tx.objectStore(OUTBOX_STORE)
