@@ -12,6 +12,7 @@ import logo from '../src/assets/brand/qauto-logo.svg'
 import word from '../src/assets/brand/qauto-wordmark.svg'
 import wordWhite from '../src/assets/brand/qauto-wordmark-white.svg'
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from '../src/sync/config'
+import { PHOTOS } from './photos'
 
 type Branch = 'volkswagen' | 'audi'
 type Who = 'guest' | 'retail'
@@ -150,7 +151,12 @@ function art(it: Item): string {
   if (k === 'pastry') return `<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M8 40c4-14 16-22 24-22s20 8 24 22c-4 4-10 4-12 0-2 5-8 6-12 6s-10-1-12-6c-2 4-8 4-12 0z" fill="${c}"/><path d="M22 26l4 16M32 21v22M42 26l-4 16" stroke="#9A6A2C" stroke-width="2" stroke-linecap="round" opacity=".6"/></svg>`
   return `<svg viewBox="0 0 64 64" aria-hidden="true"><rect x="10" y="24" width="44" height="18" rx="5" fill="${c}" transform="rotate(-12 32 33)"/><rect x="22" y="24" width="20" height="18" fill="#F2C14E" transform="rotate(-12 32 33)"/></svg>`
 }
-const artOf = (id: string) => { const it = findItem(id); return it ? art(it) : '' }
+// The real photo where there is one, otherwise the drawn icon. Small tiles load the small file.
+function pic(it: Item, size: 'sm' | 'lg' = 'sm'): string {
+  if (!PHOTOS.has(it.id)) return art(it)
+  return `<img class="photo" src="/menu/${it.id}${size === 'sm' ? '-sm' : ''}.webp" alt="" loading="${size === 'sm' ? 'lazy' : 'eager'}" decoding="async">`
+}
+const artOf = (id: string) => { const it = findItem(id); return it ? pic(it) : '' }
 
 /* ---------- Screens ---------- */
 const phone = document.getElementById('phone')!
@@ -172,7 +178,7 @@ const plus = (it: Item) => { const q = inCart(it.id); return `<span class="plus 
 function sectionHTML(ci: number, animate: boolean) {
   const c = MENU[ci]
   return `<section class="section"><h3>${esc(c.name)} <small class="count">${c.items.length} item${c.items.length > 1 ? 's' : ''}</small></h3>${c.items.map((it, i) => `<button class="icard ${animate ? 'in' : ''}" ${animate ? `style="animation-delay:${(0.03 + 0.04 * i).toFixed(2)}s"` : ''} data-open="${it.id}">
-        <span class="tile">${art(it)}</span>
+        <span class="tile">${pic(it)}</span>
         <span class="t"><b>${esc(it.name)}</b><span class="p num">${qar(it.price)}</span>${it.milk ? '<span class="badge">Choice of milk</span>' : ''}</span>
         ${plus(it)}</button>`).join('')}</section><div class="end" aria-hidden="true"></div>`
 }
@@ -182,7 +188,7 @@ function menuHTML() {
       <button class="where-btn" data-go="welcome" aria-label="Change branch">${BUILDING[S.branch!]} <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button></div>
       <div class="hi"><small>${greeting()}</small><h2>What can we get you?</h2></div></div>
     <div class="sec-h ${a ? 'in' : ''}" ${d()}><h3>Popular</h3><small>Swipe for more</small></div>
-    <div class="rail">${POPULAR.map(it => `<button class="pcard ${a ? 'in' : ''}" ${d()} data-open="${it.id}"><span class="tile">${art(it)}${plus(it)}</span><span class="t"><b>${esc(it.name)}</b><small class="num">${qar(it.price)}</small></span></button>`).join('')}</div>
+    <div class="rail">${POPULAR.map(it => `<button class="pcard ${a ? 'in' : ''}" ${d()} data-open="${it.id}"><span class="tile">${pic(it)}${plus(it)}</span><span class="t"><b>${esc(it.name)}</b><small class="num">${qar(it.price)}</small></span></button>`).join('')}</div>
     <nav class="tabs ${a ? 'in' : ''}" ${d()} aria-label="Menu sections"><div class="tabs-in" id="tabs"><span class="ink" id="ink"></span>${MENU.map((c, i) => `<button data-tab="${i}" aria-current="${i === S.cat}">${esc(c.name)}</button>`).join('')}</div></nav>
     <div id="list">${sectionHTML(S.cat, a)}</div>`
 }
@@ -190,7 +196,7 @@ function sheetHTML() {
   const it = findItem(S.sheet!.id)!, q = S.sheet!.qty
   return `<div class="sheet-bg" id="sheetbg" data-closesheet="1"><div class="sheet" role="dialog" aria-label="${esc(it.name)}"><span class="grab"></span>
     <div class="sb">
-      <div class="hero-t">${art(it)}</div>
+      <div class="hero-t ${PHOTOS.has(it.id) ? 'has-photo' : ''}">${pic(it, 'lg')}</div>
       <div class="nm"><h3>${esc(it.name)}</h3><span class="num">${qar(it.price)}</span></div>
       ${it.milk ? `<div><div class="lbl-row">Milk <span class="badge outline">Required</span></div><div class="radios">
         ${([['fresh', 'Regular milk', 'Fresh full-cream'], ['lactose-free', 'Lactose-free milk', 'Same taste, no lactose']] as const).map(([k, t, sub]) => `<button class="radio" data-milk="${k}" aria-pressed="${S.sheet!.milk === k}"><i></i><span><b>${t}</b><small>${sub}</small></span></button>`).join('')}</div></div>` : ''}
@@ -303,7 +309,7 @@ function spy() {
 function fly(fromRect: DOMRect | undefined, it: Item) {
   const bag = document.getElementById('bag'); if (!bag || reduceMotion() || !fromRect) return
   const p = phone.getBoundingClientRect(), to = bag.getBoundingClientRect()
-  const el = document.createElement('div'); el.className = 'flyer'; el.innerHTML = art(it)
+  const el = document.createElement('div'); el.className = 'flyer'; el.innerHTML = pic(it)
   const x0 = fromRect.left - p.left + fromRect.width / 2 - 28, y0 = fromRect.top - p.top + fromRect.height / 2 - 28
   const x1 = to.left - p.left, y1 = to.top - p.top + to.height / 2 - 28
   el.style.left = x0 + 'px'; el.style.top = y0 + 'px'; phone.appendChild(el)
@@ -347,7 +353,7 @@ phone.addEventListener('click', e => {
     return
   }
   if (t.id === 'addbtn') {
-    const it = findItem(S.sheet!.id)!, from = phone.querySelector('.hero-t svg')?.getBoundingClientRect()
+    const it = findItem(S.sheet!.id)!, from = phone.querySelector('.hero-t svg, .hero-t img')?.getBoundingClientRect()
     addToCart(it.id, S.sheet!.milk, S.sheet!.qty); closeSheet(() => fly(from, it)); return
   }
   if (d.tab !== undefined) {
