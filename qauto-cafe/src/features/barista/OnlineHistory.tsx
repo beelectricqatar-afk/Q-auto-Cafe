@@ -153,11 +153,11 @@ export function OnlineHistory() {
             {s.topDrinks.length ? s.topDrinks.slice(0, 6).map(d => <Bar key={d.name} name={d.name} n={d.n} max={s.topDrinks[0].n} />) : <span className="text-sm text-muted-foreground">No drinks yet.</span>}
           </Box>
           <Box title="Busiest hours">
-            <div className="flex h-36 items-end gap-1">
+            <div className="flex items-end gap-1">
               {hours.map(({ h, n }) => (
-                <div key={h} className="grid h-full flex-1 content-end justify-items-center gap-1" title={`${hourLabel(h)}: ${n} order(s)`}>
+                <div key={h} className="flex flex-1 flex-col items-center justify-end gap-1" title={`${hourLabel(h)}: ${n} order(s)`}>
                   {n > 0 && <span className="text-[10px] tabular-nums text-muted-foreground">{n}</span>}
-                  <div className={`w-full rounded-t ${n ? 'bg-primary' : 'bg-muted'}`} style={{ height: `${Math.max(4, n / maxHour * 100)}%` }} />
+                  <div className={`w-full rounded-t ${n ? 'bg-primary' : 'bg-muted'}`} style={{ height: Math.max(4, Math.round(n / maxHour * 96)) }} />
                   <span className="text-[10px] text-muted-foreground">{hourLabel(h)}</span>
                 </div>
               ))}
