@@ -284,7 +284,7 @@ function emptyOrderHTML() {
   return `<div class="c-head"><h2>Your order</h2></div><div class="c-body"><div class="card empty-order"><div class="card-c"><b>Nothing here yet</b><p>Pick a drink from the menu and it will show up here.</p></div></div></div>`
 }
 function mainHTML(dir = '') {
-  if (isDesk() && S.view === 'menu') return `<div class="p-body ${dir}" id="pbody">${menuHTML()}</div><aside class="side" id="side" aria-label="Your order">${S.cart.length ? cartHTML() : emptyOrderHTML()}</aside>`
+  if (isDesk() && S.view === 'menu') return `<div class="p-body with-side ${dir}" id="pbody">${menuHTML()}</div><aside class="side" id="side" aria-label="Your order">${S.cart.length ? cartHTML() : emptyOrderHTML()}</aside>`
   return `<div class="p-body ${dir}" id="pbody">${S.view === 'menu' ? menuHTML() : S.view === 'cart' ? cartHTML() : trackHTML()}</div>`
 }
 
