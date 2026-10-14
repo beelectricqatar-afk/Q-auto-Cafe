@@ -8,7 +8,9 @@
     "build": "tsc -b && vite build",
     "test": "vitest",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "dev:online": "vite --config vite.online.config.ts",
+    "build:online": "tsc -b && vite build --config vite.online.config.ts"
   },
   "dependencies": {
     "@fontsource/montserrat": "^5.2.8",

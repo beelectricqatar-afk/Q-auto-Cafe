@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { aggregateBilling } from './billing'
+import { aggregateBilling, walkinGroups } from './billing'
 import type { Order } from '../db/schema'
 
 const orders: Order[] = [
@@ -24,5 +24,23 @@ describe('aggregateBilling', () => {
   it('groups null department under an Unassigned bucket id', () => {
     const r = aggregateBilling(orders, { from: 0, to: 100000 })
     expect(r.departments.find(d => d.departmentId === null)!.total).toBe(4)
+  })
+})
+
+describe('walkinGroups', () => {
+  const w = (id: string, total: number, customerName?: string, walkinStaffId?: string): Order =>
+    ({ id, timestamp: 1, staffId: null, departmentId: null, total, lines: [], walkin: true, customerName, walkinStaffId })
+  const names: Record<string, string> = { huda: 'Huda Abbas' }
+
+  it('counts a linked walk-in under the person, whatever name was typed', () => {
+    const g = walkinGroups([w('a', 10, 'Huda Abbas', 'huda'), w('b', 5, 'huda', 'huda')], id => names[id])
+    expect(g).toEqual([{ key: 'staff:huda', name: 'Huda Abbas', total: 15, orderCount: 2 }])
+  })
+  it('keeps unlinked walk-ins grouped by the typed name, as before', () => {
+    const g = walkinGroups([w('a', 10, 'huda'), w('b', 4), w('c', 6, 'Huda Abbas', 'huda')], id => names[id])
+    expect(g.map(x => [x.key, x.total])).toEqual([['name:huda', 10], ['staff:huda', 6], ['name:(no name)', 4]])
+  })
+  it('ignores department orders', () => {
+    expect(walkinGroups([{ ...w('a', 10, 'x'), walkin: false }], () => undefined)).toEqual([])
   })
 })

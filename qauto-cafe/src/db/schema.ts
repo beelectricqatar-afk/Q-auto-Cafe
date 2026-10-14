@@ -28,7 +28,8 @@ export interface PriceListItem {
 export type ExpenseCategory = 'supplies' | 'utilities' | 'maintenance' | 'packaging' | 'petty-cash' | 'salaries' | 'rent' | 'other'
 
 export interface Department { id: string; name: string; mainExtension: string; active: boolean }
-export interface Staff { id: string; name: string; position: string; email: string; extension: string; departmentId: string; active: boolean }
+// `mobile` is 8 digits with no +974; it is how an online Staff (retail) order finds the person.
+export interface Staff { id: string; name: string; position: string; email: string; extension: string; departmentId: string; active: boolean; mobile?: string }
 // `stockQty` is always counted in whole `unit`s (e.g. lemons).
 // An ingredient may optionally be divided into sub-units (e.g. 1 lemon = 10
 // slices): recipes are then written in sub-units, and stock still draws down in
@@ -83,7 +84,10 @@ export type Branch = 'audi' | 'volkswagen'
 /** How the order was paid for. Absent on anything placed before this was asked. */
 export type PaymentMethod = 'cash' | 'card'
 
-export interface Order { id: string; timestamp: number; staffId: string | null; departmentId: string | null; lines: OrderLine[]; total: number; note?: string; walkin?: boolean; customerName?: string; discountPct?: number; branch?: Branch; paymentMethod?: PaymentMethod }
+// `walkinStaffId` is who a walk-in was, when the directory knows them. It is never a
+// department bill: walk-ins still pay cash or card. `onlineOrderId` is the online
+// order an accepted order came from.
+export interface Order { id: string; timestamp: number; staffId: string | null; departmentId: string | null; lines: OrderLine[]; total: number; note?: string; walkin?: boolean; customerName?: string; discountPct?: number; branch?: Branch; paymentMethod?: PaymentMethod; walkinStaffId?: string; onlineOrderId?: string }
 // `return` is stock put back when an order is deleted — distinct from `restock`,
 // which is new stock arriving.
 export type AdjustmentReason = 'order' | 'restock' | 'manual' | 'stocktake' | 'return'

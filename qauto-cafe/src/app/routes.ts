@@ -1,1 +1,1 @@
-export type View = 'barista' | 'admin'
+export type View = 'barista' | 'online' | 'admin'

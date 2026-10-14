@@ -4,7 +4,9 @@ import type { Department, Staff } from '../../db/schema'
 import { matchStaff } from '../../domain/search'
 import { Modal } from '../../components/Modal'
 
-export interface Source { staff: Staff | null; department: Department | null; walkin?: boolean; walkinName?: string }
+// `walkinStaffId` is set only when a directory suggestion was picked, so the
+// walk-in is counted under that person. Typing afterwards drops it.
+export interface Source { staff: Staff | null; department: Department | null; walkin?: boolean; walkinName?: string; walkinStaffId?: string }
 
 export function SourcePicker({ data, value, onChange }: { data: Data; value: Source; onChange: (s: Source) => void }) {
   const [open, setOpen] = useState(false)
@@ -59,7 +61,7 @@ export function SourcePicker({ data, value, onChange }: { data: Data; value: Sou
               {nameSuggestions.map(s => (
                 <button
                   key={s.id}
-                  onClick={() => onChange({ staff: null, department: null, walkin: true, walkinName: s.name })}
+                  onClick={() => onChange({ staff: null, department: null, walkin: true, walkinName: s.name, walkinStaffId: s.id })}
                   style={{ textAlign: 'left', padding: '10px 12px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.2)', background: '#2A2A2A', color: '#fff', fontSize: 15 }}
                 >
                   {s.name} <span style={{ color: 'rgba(255,255,255,0.5)' }}>· {deptName(s.departmentId)}</span>

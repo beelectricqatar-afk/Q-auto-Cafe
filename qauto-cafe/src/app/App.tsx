@@ -5,18 +5,22 @@ import type { SyncStatus } from '../sync/sync'
 import type { View } from './routes'
 import { BaristaPanel } from '../features/barista/BaristaPanel'
 import { AdminPanel } from '../features/admin/AdminPanel'
+import { OnlineOrders } from '../features/barista/OnlineOrders'
+import { useOnlineOrders } from './useOnlineOrders'
 import qautoLogoWhite from '../assets/brand/qauto-logo-white.svg'
 import qautoWordmarkWhite from '../assets/brand/qauto-wordmark-white.svg'
 
 export default function App() {
   const { data, status, refresh } = useData()
   const [view, setView] = useState<View>('barista')
+  // Checked on every screen, so a new online order rings wherever the team is.
+  const online = useOnlineOrders()
   if (!data) return <div style={{ color: '#fff', padding: 24 }}>Loading…</div>
   return (
     <ToastProvider>
       <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: 'var(--bg)', position: 'relative' }}>
         <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 18px', color: '#fff' }}>
-          {view === 'barista'
+          {view !== 'admin'
             ? (
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <img src={qautoLogoWhite} alt="" width={28} height={28} />
@@ -27,18 +31,24 @@ export default function App() {
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             <SyncPill status={status} />
             <button onClick={() => setView('barista')} style={tab(view === 'barista')}>Barista</button>
+            <button onClick={() => setView('online')} style={tab(view === 'online')}>
+              Online{online.pendingCount > 0 && <span aria-label={`${online.pendingCount} new`} style={count}>{online.pendingCount}</span>}
+            </button>
             <button onClick={() => { setView('admin') }} style={tab(view === 'admin')}>Admin</button>
           </div>
         </header>
         <main style={{ flex: 1, overflow: 'hidden' }}>
           {view === 'barista'
             ? <BaristaPanel data={data} onPlaced={refresh} />
-            : <AdminPanel data={data} refresh={refresh} />}
+            : view === 'online'
+              ? <OnlineOrders data={data} orders={online.orders} reload={online.reload} onPlaced={refresh} />
+              : <AdminPanel data={data} refresh={refresh} />}
         </main>
       </div>
     </ToastProvider>
   )
 }
+const count = { display: 'inline-grid', placeItems: 'center', minWidth: 20, height: 20, padding: '0 6px', marginLeft: 6, borderRadius: 999, background: '#E7000B', color: '#fff', fontSize: 11 } as const
 const tab = (active: boolean) => ({ background: active ? '#fff' : '#1A1A1A', color: active ? '#1A1A1A' : '#fff', border: active ? '1px solid #e5e5e5' : 'none', borderRadius: 10, padding: '8px 16px', fontWeight: 700 } as const)
 
 // Silence is only reassuring when a failure would be loud. Nothing shows while
