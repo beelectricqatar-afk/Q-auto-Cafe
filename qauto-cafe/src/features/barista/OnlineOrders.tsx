@@ -14,6 +14,7 @@ import {
   type OnlineOrder, type OnlineStatus,
 } from '../../domain/online'
 import { onlineClient } from '../../sync/online'
+import { OnlineHistory } from './OnlineHistory'
 
 const CAFE = { volkswagen: 'VW Cafe', audi: 'Audi Cafe' } as const
 const STATE: Record<OnlineStatus, string> = { pending: 'New', accepted: 'Making', onway: 'Out for delivery', delivered: 'Delivered', rejected: 'Rejected' }
@@ -33,6 +34,7 @@ export function OnlineOrders({ data, orders, reload, onPlaced }: { data: Data; o
   const [open, setOpen] = useState<Record<string, boolean>>({})
   const [rejecting, setRejecting] = useState<OnlineOrder | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
+  const [tab, setTab] = useState<'board' | 'history'>('board')
   const milk = useMemo(() => milkPair(data.ingredients), [data.ingredients])
   const deptName = (id: string) => data.departments.find(d => d.id === id)?.name ?? '—'
 
@@ -218,11 +220,22 @@ export function OnlineOrders({ data, orders, reload, onPlaced }: { data: Data; o
 
   return (
     <div className="grid h-full content-start gap-4 overflow-auto bg-[#f9fafb] p-4 font-sans text-foreground">
-      <div>
-        <h2 className="m-0 text-xl font-semibold tracking-tight">Online orders</h2>
-        <p className="m-0 text-sm text-muted-foreground">New orders ring and wait here until someone accepts them.</p>
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h2 className="m-0 text-xl font-semibold tracking-tight">Online orders</h2>
+          <p className="m-0 text-sm text-muted-foreground">{tab === 'board' ? 'New orders ring and wait here until someone accepts them.' : 'Every online order, and what they add up to.'}</p>
+        </div>
+        <div className="flex gap-0.5 rounded-control bg-muted p-[3px]" role="tablist">
+          {(['board', 'history'] as const).map(t => (
+            <button key={t} role="tab" aria-selected={tab === t} onClick={() => setTab(t)}
+              className={`h-8 cursor-pointer rounded-md border-0 px-3.5 font-sans text-sm font-medium ${tab === t ? 'bg-card text-foreground shadow-[0_1px_3px_rgba(0,0,0,.1)]' : 'bg-transparent text-muted-foreground'}`}>
+              {t === 'board' ? 'Today' : 'History'}
+            </button>
+          ))}
+        </div>
       </div>
-      {rejecting && (
+      {tab === 'history' && <OnlineHistory />}
+      {tab === 'board' && rejecting && (
         <div role="dialog" aria-label="Reject order" className="grid overflow-hidden rounded-card bg-card shadow-card">
           <div className="grid gap-1.5 px-4 py-3.5">
             <b className="font-semibold">Reject #{rejecting.data.no}?</b>
@@ -238,11 +251,11 @@ export function OnlineOrders({ data, orders, reload, onPlaced }: { data: Data; o
           </div>
         </div>
       )}
-      <div className="grid grid-cols-1 items-start gap-3.5 lg:grid-cols-3">
+      {tab === 'board' && <div className="grid grid-cols-1 items-start gap-3.5 lg:grid-cols-3">
         {col('New', cols.new, 'No new orders.', true)}
         {col('Making and delivering', cols.making, 'Accepted orders show here.')}
         {col('Done today', cols.done, 'Delivered and rejected orders.')}
-      </div>
+      </div>}
     </div>
   )
 }
