@@ -306,3 +306,12 @@ h1,h2,h3,p{margin:0}
 .state-msg h2{color:var(--fg);font-size:20px;font-weight:600}
 .input.note{height:auto;min-height:64px;padding:10px 14px;line-height:20px;resize:none;display:block}
 .card-h h3 .opt{font-size:12px;font-weight:400;color:var(--muted-fg);margin-left:4px}
+
+/* Real drink photos fill their tile; the drawn icons stay for anything without one. */
+.tile{overflow:hidden}
+.tile img.photo,.flyer img.photo{width:100%;height:100%;object-fit:cover;display:block}
+.pcard .tile img.photo{transition:transform .35s var(--spring)}
+.pcard:hover .tile img.photo{transform:scale(1.04)}
+.flyer{overflow:hidden}
+.sheet .hero-t.has-photo{display:block;width:100%;height:min(100vw - 40px, 46vh, 440px);overflow:hidden}
+.sheet .hero-t img.photo{width:100%;height:100%;object-fit:cover;display:block}
