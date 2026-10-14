@@ -76,7 +76,7 @@ interface State {
   view: 'welcome' | 'menu' | 'cart' | 'thanks' | 'track'
   branch: Branch | null; cart: CartLine[]; sheet: { id: string; milk: Milk | null; qty: number } | null
   animate: boolean; cat: number; sending: boolean; sendError: string
-  form: { name: string; ext: string; mobile: string; where: string; who: Who; pay: Pay }
+  form: { name: string; ext: string; mobile: string; where: string; note: string; who: Who; pay: Pay }
   errors: Partial<Record<'name' | 'ext' | 'mobile' | 'where', string>>
 }
 let S: State
@@ -84,14 +84,14 @@ let mine: Mine | null = null
 let lastBranch: Branch = 'volkswagen'
 function fresh() {
   S = { view: 'welcome', branch: null, cart: [], sheet: null, animate: true, cat: 0, sending: false, sendError: '',
-    form: { name: '', ext: '', mobile: '', where: '', who: 'guest', pay: 'card' }, errors: {} }
+    form: { name: '', ext: '', mobile: '', where: '', note: '', who: 'guest', pay: 'card' }, errors: {} }
 }
 fresh()
 
 // The last order and the customer's details stay on their phone, so a refresh
 // keeps tracking and the next order is quicker.
 const SAVE = 'qauto-online'
-function save() { try { localStorage.setItem(SAVE, JSON.stringify({ mine, form: { ...S.form, ext: '' }, lastBranch })) } catch { /* private mode */ } }
+function save() { try { localStorage.setItem(SAVE, JSON.stringify({ mine, form: { ...S.form, ext: '', note: '' }, lastBranch })) } catch { /* private mode */ } }
 function restore() {
   try {
     const v = JSON.parse(localStorage.getItem(SAVE) ?? 'null')
@@ -225,6 +225,9 @@ function cartHTML() {
     <div class="card"><div class="card-h"><h3>Bring it to</h3><p>Where should we deliver your order?</p></div><div class="card-c">
       <label class="field"><input class="input" id="f-where" value="${esc(f.where)}" maxlength="120" placeholder="e.g. Service reception, ground floor" aria-label="Where should we bring it?">${e.where ? `<small class="error">${e.where}</small>` : ''}</label>
     </div></div>
+    <div class="card"><div class="card-h"><h3>Notes <small class="opt">Optional</small></h3></div><div class="card-c">
+      <textarea class="input note" id="f-note" rows="2" maxlength="200" placeholder="e.g. Less sugar, extra hot" aria-label="Notes for the cafe">${esc(f.note)}</textarea>
+    </div></div>
     <button class="sendbtn" id="place" ${S.sending ? 'disabled' : ''}>${S.sending ? 'Sending…' : guest ? 'Send order' : 'Send order · ' + qar2(applyDiscount(cartTotal(), STAFF_DISCOUNT))}</button>
     ${S.sendError ? `<p class="send-err" role="alert">${esc(S.sendError)}</p>` : ''}
   </div>`
@@ -317,7 +320,7 @@ function closeSheet(after?: () => void) {
   bg.classList.add('closing'); setTimeout(() => { S.sheet = null; render(); after?.() }, 240)
 }
 function readForm() {
-  for (const k of ['name', 'ext', 'mobile', 'where'] as const) { const el = document.getElementById('f-' + k) as HTMLInputElement | null; if (el) S.form[k] = el.value }
+  for (const k of ['name', 'ext', 'mobile', 'where', 'note'] as const) { const el = document.getElementById('f-' + k) as HTMLInputElement | HTMLTextAreaElement | null; if (el) S.form[k] = el.value }
 }
 
 phone.addEventListener('click', e => {
@@ -356,7 +359,7 @@ phone.addEventListener('click', e => {
     if (body.scrollTop > bar.offsetTop) { body.style.scrollBehavior = 'auto'; body.scrollTop = bar.offsetTop; body.style.scrollBehavior = '' }
     return
   }
-  if (d.go === 'neworder') { const form = S.form; fresh(); S.form = { ...form, ext: '', where: form.where }; S.view = 'menu'; S.branch = lastBranch; S.animate = true; render('view-back'); return }
+  if (d.go === 'neworder') { const form = S.form; fresh(); S.form = { ...form, ext: '', note: '', where: form.where }; S.view = 'menu'; S.branch = lastBranch; S.animate = true; render('view-back'); return }
   if (d.go === 'menu') { S.view = 'menu'; S.errors = {}; S.sendError = ''; render('view-back'); return }
   if (d.go === 'welcome') { S.view = 'welcome'; render(); return }
   if (d.go) { S.view = d.go as State['view']; S.errors = {}; render('view-in'); return }
@@ -381,7 +384,7 @@ async function place() {
   S.sending = true; render()
   try {
     const r = await rpc<{ id: string; token: string; no: number; subtotal: number; discountPct: number; total: number }>('place_online_order', { o: {
-      branch: S.branch, who: f.who, name: f.name.trim(), deliverTo: f.where.trim(),
+      branch: S.branch, who: f.who, name: f.name.trim(), deliverTo: f.where.trim(), ...(f.note.trim() && { note: f.note.trim() }),
       ...(guest ? { ext: digits(f.ext) } : { mobile: digits(f.mobile), pay: f.pay }),
       lines: S.cart.map(l => ({ itemId: l.id, qty: l.qty, ...(l.milk && { milk: l.milk }) })),
     } })

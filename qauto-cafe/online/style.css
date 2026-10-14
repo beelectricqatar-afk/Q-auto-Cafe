@@ -304,3 +304,5 @@ h1,h2,h3,p{margin:0}
 .sendbtn:disabled{opacity:.6;pointer-events:none}
 .state-msg{position:absolute;inset:0;display:grid;place-content:center;gap:14px;padding:32px;text-align:center;color:var(--muted-fg)}
 .state-msg h2{color:var(--fg);font-size:20px;font-weight:600}
+.input.note{height:auto;min-height:64px;padding:10px 14px;line-height:20px;resize:none;display:block}
+.card-h h3 .opt{font-size:12px;font-weight:400;color:var(--muted-fg);margin-left:4px}
