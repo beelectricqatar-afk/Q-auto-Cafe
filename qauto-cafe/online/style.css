@@ -128,7 +128,7 @@ h1,h2,h3,p{margin:0}
 .sec-h{display:flex;align-items:baseline;justify-content:space-between;padding:18px 20px 10px}
 .sec-h h3{font-size:16px;font-weight:600}
 .sec-h small{font-size:12px;color:var(--muted-fg)}
-.rail{display:flex;gap:12px;overflow-x:auto;padding:1px 20px 6px;scroll-snap-type:x mandatory;scrollbar-width:none}
+.rail{display:flex;gap:12px;overflow-x:auto;padding:1px 20px 6px;scroll-snap-type:x mandatory;scroll-padding-inline:20px;scrollbar-width:none}
 .rail::-webkit-scrollbar{display:none}
 .pcard{flex:none;width:144px;scroll-snap-align:start;display:grid;gap:10px;text-align:left;border:0;background:var(--card);box-shadow:var(--hair);border-radius:var(--r-card);padding:8px 8px 12px;transition:box-shadow .2s}
 .pcard:hover{box-shadow:0 0 0 1px #A3A3A3}
@@ -280,7 +280,8 @@ h1,h2,h3,p{margin:0}
 .bgvid{animation:vidIn 1.4s ease .3s forwards}
 @keyframes vidIn{to{opacity:1}}
 .scrim{position:absolute;inset:0;z-index:0;background:linear-gradient(180deg,rgba(0,0,0,.55) 0%,rgba(0,0,0,.25) 38%,rgba(0,0,0,.35) 60%,rgba(0,0,0,.82) 100%)}
-.welcome.has-video>*:not(.bgvid):not(.scrim){position:relative;z-index:1}
+.welcome.has-video>*:not(.bgvid):not(.scrim):not(.loader){position:relative;z-index:1}
+.welcome.has-video>.loader{z-index:1}
 .welcome.has-video .loader{position:absolute;background:rgba(255,255,255,.2)}
 .welcome.has-video .loader i{background:#fff}
 .welcome.has-video .mark{background:#fff;box-shadow:0 10px 30px rgba(0,0,0,.35)}
@@ -315,3 +316,61 @@ h1,h2,h3,p{margin:0}
 .flyer{overflow:hidden}
 .sheet .hero-t.has-photo{display:block;width:100%;height:min(100vw - 40px, 46vh, 440px);overflow:hidden}
 .sheet .hero-t img.photo{width:100%;height:100%;object-fit:cover;display:block}
+
+/* ---------- Desktop (960px and wider) ----------
+   The page uses the whole window: the menu as a grid of cards on the left, the
+   order and checkout in a panel on the right, and the item popup as a centred
+   dialog. Phones are untouched. */
+@media (min-width:960px){
+  body{background:var(--card)}
+  .phone{max-width:none;box-shadow:none}
+  .phone.is-desk .p-body{right:420px}
+  .side{position:absolute;top:0;right:0;bottom:0;width:420px;overflow:auto;background:var(--footer);border-left:1px solid var(--border);scrollbar-width:thin}
+  .side .c-head{background:rgba(250,250,250,.9);padding-top:28px}
+  .side .back{display:none}
+  .empty-order .card-c{padding:22px 20px;gap:4px}
+  .empty-order b{font-weight:600}
+  .empty-order p{color:var(--muted-fg);font-size:14px}
+
+  /* Menu */
+  .is-desk .p-body>*{max-width:1080px;margin-left:auto;margin-right:auto}
+  .is-desk .m-head{padding:32px 32px 6px}
+  .is-desk .m-head .hi h2{font-size:32px;line-height:40px}
+  .is-desk .sec-h{padding:22px 32px 12px}
+  .is-desk .rail{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));overflow:visible;padding:1px 32px 6px;gap:16px}
+  .is-desk .pcard{width:auto}
+  .is-desk .sec-h small{display:none}
+  .is-desk .w-text h2{font-size:40px;line-height:48px}
+  .is-desk .w-text p{font-size:17px}
+  .is-desk .pcard .tile{height:160px}
+  .is-desk .tabs{padding:12px 32px}
+  .is-desk .tabs-in{flex-wrap:wrap;overflow:visible}
+  .is-desk .section{padding:4px 32px 6px;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px;min-height:0}
+  .is-desk .section h3{grid-column:1/-1}
+  .is-desk .icard{position:relative;flex-direction:column;align-items:stretch;gap:10px;padding:8px 8px 14px}
+  .is-desk .icard .tile{width:100%;height:auto;aspect-ratio:4/3}
+  .is-desk .icard .tile svg{width:96px;height:96px}
+  .is-desk .icard .t{padding:0 6px}
+  .is-desk .icard .plus{position:absolute;right:16px;top:16px;width:36px;height:36px}
+  .is-desk .end{padding-bottom:48px}
+
+  /* Item popup becomes a centred dialog */
+  .is-desk .sheet-bg{align-items:center;justify-content:center}
+  .is-desk .sheet{width:min(520px,92vw);border-radius:var(--r-card);animation:dialogIn .3s var(--ease)}
+  .is-desk .sheet-bg.closing .sheet{animation:fadeout .2s forwards}
+  .is-desk .grab{display:none}
+  .is-desk .sheet .sb{padding-top:20px}
+  .is-desk .sheet .hero-t.has-photo{height:min(46vh,480px)}
+
+  /* Welcome, thank-you and tracking sit in a centred column */
+  .welcome{justify-content:center;align-items:center}
+  .welcome>.brand-lock,.welcome>.w-text,.welcome>.w-pick{width:min(560px,100%)}
+  .w-pick{margin-top:48px;grid-template-columns:1fr 1fr}
+  .w-pick .lbl{grid-column:1/-1;text-align:center}
+  .loader{top:calc(50% + 70px)}
+  .brand-lock{animation-name:lockRiseDesk}
+  .trk{max-width:640px;margin:0 auto;padding-top:48px}
+  .c-head{padding-top:28px}
+}
+@keyframes dialogIn{from{opacity:0;transform:translateY(12px) scale(.98)}}
+@keyframes lockRiseDesk{0%{transform:translateY(160px) scale(1.1)}55%{transform:translateY(160px) scale(1.1)}100%{transform:none}}
