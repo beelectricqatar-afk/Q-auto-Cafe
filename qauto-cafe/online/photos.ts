@@ -36,4 +36,6 @@ export const PHOTOS: ReadonlySet<string> = new Set([
   '1aa43542-e995-414a-a45f-37bae6864875',
   '56496a33-c44d-47f1-a602-c15027fb39d2',
   '3b16969e-3c92-4b06-80b9-fcc74b4b903b',
+  '51d980f4-5a9c-40b8-9740-f58841decdd8',
+  '6546d48c-1151-4fd4-8cea-c52390cf1e9a',
 ])
