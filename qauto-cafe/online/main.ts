@@ -276,18 +276,34 @@ function trackHTML() {
   </div>`
 }
 
+// On a laptop or desktop the order sits in a panel beside the menu instead of a
+// screen of its own. Phones keep the one-column flow.
+const wide = matchMedia('(min-width: 960px)')
+const isDesk = () => wide.matches
+function emptyOrderHTML() {
+  return `<div class="c-head"><h2>Your order</h2></div><div class="c-body"><div class="card empty-order"><div class="card-c"><b>Nothing here yet</b><p>Pick a drink from the menu and it will show up here.</p></div></div></div>`
+}
+function mainHTML(dir = '') {
+  if (isDesk() && S.view === 'menu') return `<div class="p-body ${dir}" id="pbody">${menuHTML()}</div><aside class="side" id="side" aria-label="Your order">${S.cart.length ? cartHTML() : emptyOrderHTML()}</aside>`
+  return `<div class="p-body ${dir}" id="pbody">${S.view === 'menu' ? menuHTML() : S.view === 'cart' ? cartHTML() : trackHTML()}</div>`
+}
+
 let tracking: ReturnType<typeof setInterval> | null = null
 function render(dir?: string) {
+  if (isDesk() && S.view === 'cart') S.view = 'menu'
+  phone.classList.toggle('is-desk', isDesk())
+  const sideTop = document.getElementById('side')?.scrollTop ?? 0
   const body = document.getElementById('pbody'); const top = body ? body.scrollTop : 0; const same = phone.dataset.view === S.view
   let h = ''
   if (S.view === 'welcome') h += welcomeHTML()
   else if (S.view === 'thanks') h += thanksHTML()
-  else h += `<div class="p-body ${!same && dir ? dir : ''}" id="pbody">${S.view === 'menu' ? menuHTML() : S.view === 'cart' ? cartHTML() : trackHTML()}</div>`
-  if (S.view === 'menu') h += bagHTML()
+  else h += mainHTML(!same && dir ? dir : '')
+  if (S.view === 'menu' && !isDesk()) h += bagHTML()
   if (S.sheet) h += sheetHTML()
   phone.innerHTML = h; phone.dataset.view = S.view
   const nb = document.getElementById('pbody')
   if (nb) { nb.style.scrollBehavior = 'auto'; nb.scrollTop = same ? top : 0; nb.style.scrollBehavior = '' }
+  const side = document.getElementById('side'); if (side) side.scrollTop = sideTop
   if (S.view === 'menu') { placeInk(); nb!.addEventListener('scroll', spy, { passive: true }) }
   S.animate = false
   // Follow the order while its page is open.
@@ -331,15 +347,16 @@ function readForm() {
 
 phone.addEventListener('click', e => {
   const t = (e.target as HTMLElement).closest<HTMLElement>('button,[data-closesheet]'); if (!t) return
-  if (S.view === 'cart') readForm()
+  readForm()
   const d = t.dataset
   if (d.branch) {
     S.branch = d.branch as Branch; lastBranch = S.branch; S.view = 'menu'; S.animate = true; S.cat = 0
     const w = document.getElementById('welcome')!
     // Draw the menu underneath, then lift the welcome away.
-    phone.insertAdjacentHTML('afterbegin', `<div class="p-body" id="pbody">${menuHTML()}</div>`)
+    phone.classList.toggle('is-desk', isDesk())
+    phone.insertAdjacentHTML('afterbegin', mainHTML())
     phone.dataset.view = 'menu'; S.animate = false; placeInk(); document.getElementById('pbody')!.addEventListener('scroll', spy, { passive: true })
-    if (S.cart.length) phone.insertAdjacentHTML('beforeend', bagHTML())
+    if (S.cart.length && !isDesk()) phone.insertAdjacentHTML('beforeend', bagHTML())
     w.classList.add('leave'); setTimeout(() => w.remove(), reduceMotion() ? 0 : 450)
     return
   }
@@ -415,6 +432,8 @@ async function poll() {
     if (changed && S.view === 'track') render()
   } catch { /* offline for a moment; the next check catches up */ }
 }
+
+wide.addEventListener('change', () => { if (S.view !== 'welcome') render() })
 
 /* ---------- Start ---------- */
 restore()
