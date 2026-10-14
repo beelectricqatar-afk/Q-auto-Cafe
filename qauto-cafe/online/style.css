@@ -124,15 +124,14 @@ h1,h2,h3,p{margin:0}
 .m-head .hi small{font-size:14px;color:var(--muted-fg)}
 .m-head .hi h2{font-size:26px;line-height:32px;font-weight:600;letter-spacing:-.025em}
 
-/* Popular */
+/* Picks for you: a two-column grid, the first section of the menu */
 .sec-h{display:flex;align-items:baseline;justify-content:space-between;padding:18px 20px 10px}
 .sec-h h3{font-size:16px;font-weight:600}
 .sec-h small{font-size:12px;color:var(--muted-fg)}
-.rail{display:flex;gap:12px;overflow-x:auto;padding:1px 20px 6px;scroll-snap-type:x mandatory;scroll-padding-inline:20px;scrollbar-width:none}
-.rail::-webkit-scrollbar{display:none}
-.pcard{flex:none;width:144px;scroll-snap-align:start;display:grid;gap:10px;text-align:left;border:0;background:var(--card);box-shadow:var(--hair);border-radius:var(--r-card);padding:8px 8px 12px;transition:box-shadow .2s}
+.rail{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:1px 20px 6px}
+.pcard{display:grid;align-content:start;gap:10px;text-align:left;border:0;background:var(--card);box-shadow:var(--hair);border-radius:var(--r-card);padding:8px 8px 12px;transition:box-shadow .2s}
 .pcard:hover{box-shadow:0 0 0 1px #A3A3A3}
-.pcard .tile{height:120px;border-radius:var(--r-ctl);background:var(--muted);display:grid;place-items:center;position:relative}
+.pcard .tile{height:150px;border-radius:var(--r-ctl);background:var(--muted);display:grid;place-items:center;position:relative}
 .pcard .tile svg{width:84px;height:84px;transition:transform .35s var(--spring)}
 .pcard:hover .tile svg{transform:scale(1.06) rotate(-3deg)}
 .pcard .t{display:grid;gap:2px;padding:0 4px}
@@ -140,16 +139,16 @@ h1,h2,h3,p{margin:0}
 .pcard small{font-size:13px;color:var(--muted-fg)}
 
 /* Tabs: the shadcn tab list, with a sliding active pill */
-.tabs{position:sticky;top:0;z-index:6;background:rgba(255,255,255,.9);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);padding:10px 20px;margin-top:10px;border-bottom:1px solid transparent;transition:border-color .2s}
+.tabs{position:sticky;top:0;z-index:6;background:rgba(255,255,255,.9);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);padding:10px 20px;margin-top:14px;border-bottom:1px solid transparent;transition:border-color .2s}
 .tabs.stuck{border-bottom-color:var(--border)}
 .tabs-in{display:flex;gap:2px;overflow-x:auto;padding:3px;border-radius:var(--r-ctl);background:var(--muted);position:relative;scrollbar-width:none}
 .tabs-in::-webkit-scrollbar{display:none}
-.tabs button{flex:none;position:relative;z-index:1;height:30px;padding:0 12px;border:0;border-radius:7px;background:none;font-size:13px;font-weight:500;color:var(--muted-fg);transition:color .25s}
+.tabs button{flex:none;position:relative;z-index:1;height:34px;padding:0 14px;border:0;border-radius:7px;background:none;font-size:15px;font-weight:500;color:var(--muted-fg);transition:color .25s}
 .tabs button[aria-current="true"]{color:var(--fg)}
 .ink{position:absolute;top:3px;bottom:3px;border-radius:7px;background:var(--card);box-shadow:0 1px 3px rgba(0,0,0,.1);transition:left .4s var(--ease),width .4s var(--ease)}
 
 /* Item list */
-.section{padding:4px 20px 6px;scroll-margin-top:60px;display:grid;gap:10px}
+.section{padding:4px 20px 6px;display:grid;gap:10px;align-content:start}
 .section h3{font-size:16px;font-weight:600;padding:14px 0 2px}
 .icard{display:flex;align-items:center;gap:14px;padding:10px 12px 10px 10px;border:0;border-radius:var(--r-card);background:var(--card);box-shadow:var(--hair);width:100%;text-align:left;transition:box-shadow .2s}
 .icard:hover{box-shadow:0 0 0 1px #A3A3A3}
@@ -271,7 +270,6 @@ h1,h2,h3,p{margin:0}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-delay:0s!important;transition-duration:.01ms!important}.p-body{scroll-behavior:auto}}
 
 .section h3 .count{font-size:12px;font-weight:500;color:var(--muted-fg);margin-left:6px}
-.section{min-height:420px;align-content:start}
 
 /* Splash over the looping video: white type on a soft dark layer, frosted branch cards. */
 .welcome.has-video{background:#0E0F11;color:#fff}
@@ -338,14 +336,12 @@ h1,h2,h3,p{margin:0}
   .is-desk .m-head .hi h2{font-size:32px;line-height:40px}
   .is-desk .sec-h{padding:22px 32px 12px}
   .is-desk .rail{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));overflow:visible;padding:1px 32px 6px;gap:16px}
-  .is-desk .pcard{width:auto}
   .is-desk .sec-h small{display:none}
   .is-desk .w-text h2{font-size:40px;line-height:48px}
   .is-desk .w-text p{font-size:17px}
   .is-desk .pcard .tile{height:160px}
   .is-desk .tabs{padding:12px 32px}
-  .is-desk .tabs-in{flex-wrap:wrap;overflow:visible}
-  .is-desk .section{padding:4px 32px 6px;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px;min-height:0}
+  .is-desk .section{padding:4px 32px 6px;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px}
   .is-desk .section h3{grid-column:1/-1}
   .is-desk .icard{position:relative;flex-direction:column;align-items:stretch;gap:10px;padding:8px 8px 14px}
   .is-desk .icard .tile{width:100%;height:auto;aspect-ratio:4/3}

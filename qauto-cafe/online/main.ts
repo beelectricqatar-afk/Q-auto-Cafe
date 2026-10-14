@@ -174,23 +174,23 @@ function welcomeHTML() {
   </div>`
 }
 const plus = (it: Item) => { const q = inCart(it.id); return `<span class="plus ${q ? 'has' : ''}" aria-hidden="true">${q || '+'}</span>` }
-// One category at a time: tapping a tab swaps the list instead of scrolling to it.
+// The whole menu is one long page; tab 0 is Picks for you and tab i+1 is MENU[i].
 function sectionHTML(ci: number, animate: boolean) {
   const c = MENU[ci]
-  return `<section class="section"><h3>${esc(c.name)} <small class="count">${c.items.length} item${c.items.length > 1 ? 's' : ''}</small></h3>${c.items.map((it, i) => `<button class="icard ${animate ? 'in' : ''}" ${animate ? `style="animation-delay:${(0.03 + 0.04 * i).toFixed(2)}s"` : ''} data-open="${it.id}">
+  return `<section class="section" id="sec-${ci + 1}"><h3>${esc(c.name)} <small class="count">${c.items.length} item${c.items.length > 1 ? 's' : ''}</small></h3>${c.items.map((it, i) => `<button class="icard ${animate ? 'in' : ''}" ${animate ? `style="animation-delay:${(0.03 + 0.04 * i).toFixed(2)}s"` : ''} data-open="${it.id}">
         <span class="tile">${pic(it)}</span>
         <span class="t"><b>${esc(it.name)}</b><span class="p num">${qar(it.price)}</span>${it.milk ? '<span class="badge">Choice of milk</span>' : ''}</span>
-        ${plus(it)}</button>`).join('')}</section><div class="end" aria-hidden="true"></div>`
+        ${plus(it)}</button>`).join('')}</section>`
 }
 function menuHTML() {
   const a = S.animate; let n = 0; const d = () => a ? `style="animation-delay:${(0.05 + 0.045 * Math.min(n++, 12)).toFixed(2)}s"` : ''
   return `<div class="m-head ${a ? 'in' : ''}" ${d()}><div class="m-top"><span class="logo"><img src="${logo}" alt=""><img src="${word}" alt="Q-Auto"></span>
       <button class="where-btn" data-go="welcome" aria-label="Change branch">${BUILDING[S.branch!]} <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button></div>
       <div class="hi"><small>${greeting()}</small><h2>What can we get you?</h2></div></div>
-    <div class="sec-h ${a ? 'in' : ''}" ${d()}><h3>Popular</h3><small>Swipe for more</small></div>
-    <div class="rail">${POPULAR.map(it => `<button class="pcard ${a ? 'in' : ''}" ${d()} data-open="${it.id}"><span class="tile">${pic(it)}${plus(it)}</span><span class="t"><b>${esc(it.name)}</b><small class="num">${qar(it.price)}</small></span></button>`).join('')}</div>
-    <nav class="tabs ${a ? 'in' : ''}" ${d()} aria-label="Menu sections"><div class="tabs-in" id="tabs"><span class="ink" id="ink"></span>${MENU.map((c, i) => `<button data-tab="${i}" aria-current="${i === S.cat}">${esc(c.name)}</button>`).join('')}</div></nav>
-    <div id="list">${sectionHTML(S.cat, a)}</div>`
+    <nav class="tabs ${a ? 'in' : ''}" ${d()} aria-label="Menu sections"><div class="tabs-in" id="tabs"><span class="ink" id="ink"></span>${['Picks for you', ...MENU.map(c => c.name)].map((name, i) => `<button data-tab="${i}" aria-current="${i === S.cat}">${esc(name)}</button>`).join('')}</div></nav>
+    <section class="picks" id="sec-0"><div class="sec-h ${a ? 'in' : ''}" ${d()}><h3>Picks for you</h3><small>Our most-loved drinks</small></div>
+    <div class="rail">${POPULAR.map(it => `<button class="pcard ${a ? 'in' : ''}" ${d()} data-open="${it.id}"><span class="tile">${pic(it)}${plus(it)}</span><span class="t"><b>${esc(it.name)}</b><small class="num">${qar(it.price)}</small></span></button>`).join('')}</div></section>
+    <div id="list">${MENU.map((_, i) => sectionHTML(i, a && i === 0)).join('')}<div class="end" aria-hidden="true"></div></div>`
 }
 function sheetHTML() {
   const it = findItem(S.sheet!.id)!, q = S.sheet!.qty
@@ -312,14 +312,32 @@ function render(dir?: string) {
   if (!follow && tracking) { clearInterval(tracking); tracking = null }
 }
 function placeInk() {
-  const b = phone.querySelector<HTMLElement>(`[data-tab="${S.cat}"]`), ink = document.getElementById('ink'); if (!b || !ink) return
+  const b = phone.querySelector<HTMLElement>(`[data-tab="${S.cat}"]`), ink = document.getElementById('ink'), tabs = document.getElementById('tabs'); if (!b || !ink || !tabs) return
   ink.style.left = b.offsetLeft + 'px'; ink.style.width = b.offsetWidth + 'px'
-  document.getElementById('tabs')!.scrollTo({ left: b.offsetLeft - 40, behavior: reduceMotion() ? 'auto' : 'smooth' })
+  phone.querySelectorAll('[data-tab]').forEach(x => x.setAttribute('aria-current', String(x === b)))
+  // Keep the active tab in the middle of the bar as the page scrolls.
+  tabs.scrollTo({ left: b.offsetLeft - (tabs.clientWidth - b.offsetWidth) / 2, behavior: reduceMotion() ? 'auto' : 'smooth' })
 }
-// The tab bar gets a bottom edge once it sticks to the top.
+// While a tapped tab scrolls the page there, the sections passed on the way don't take over the tabs.
+let jumping = 0
+// The tab bar gets a bottom edge once it sticks to the top, and follows the section being read.
 function spy() {
-  const bar = phone.querySelector('.tabs'); if (!bar) return
-  bar.classList.toggle('stuck', bar.getBoundingClientRect().top - phone.getBoundingClientRect().top <= 1)
+  const bar = phone.querySelector<HTMLElement>('.tabs'), body = document.getElementById('pbody'); if (!bar || !body) return
+  const top = bar.getBoundingClientRect().top
+  bar.classList.toggle('stuck', top - body.getBoundingClientRect().top <= 1)
+  if (Date.now() < jumping) return
+  const line = top + bar.offsetHeight + 24
+  let cat = 0
+  phone.querySelectorAll<HTMLElement>('[id^="sec-"]').forEach((s, i) => { if (s.getBoundingClientRect().top <= line) cat = i })
+  if (body.scrollTop + body.clientHeight >= body.scrollHeight - 2) cat = MENU.length
+  if (cat !== S.cat) { S.cat = cat; placeInk() }
+}
+function jumpTo(cat: number) {
+  const body = document.getElementById('pbody')!, bar = phone.querySelector<HTMLElement>('.tabs')!, sec = document.getElementById('sec-' + cat)!
+  S.cat = cat; placeInk(); jumping = Date.now() + 1000
+  const y = cat === 0 ? 0 : body.scrollTop + sec.getBoundingClientRect().top - body.getBoundingClientRect().top - bar.offsetHeight + 1
+  body.scrollTo({ top: y, behavior: reduceMotion() ? 'auto' : 'smooth' })
+  body.addEventListener('scrollend', () => { jumping = 0 }, { once: true })
 }
 // A copy of the drink flies into the bag, then the bag bounces.
 function fly(fromRect: DOMRect | undefined, it: Item) {
@@ -374,13 +392,7 @@ phone.addEventListener('click', e => {
     addToCart(it.id, S.sheet!.milk, S.sheet!.qty); closeSheet(() => fly(from, it)); return
   }
   if (d.tab !== undefined) {
-    if (Number(d.tab) === S.cat) return
-    S.cat = Number(d.tab); placeInk(); phone.querySelectorAll('[data-tab]').forEach(b => b.setAttribute('aria-current', String(b === t)))
-    document.getElementById('list')!.innerHTML = sectionHTML(S.cat, true)
-    // If the list was scrolled, bring its top back up under the tab bar.
-    const body = document.getElementById('pbody')!, bar = phone.querySelector<HTMLElement>('.tabs')!
-    if (body.scrollTop > bar.offsetTop) { body.style.scrollBehavior = 'auto'; body.scrollTop = bar.offsetTop; body.style.scrollBehavior = '' }
-    return
+    jumpTo(Number(d.tab)); return
   }
   if (d.go === 'neworder') { const form = S.form; fresh(); S.form = { ...form, ext: '', note: '', where: form.where }; S.view = 'menu'; S.branch = lastBranch; S.animate = true; render('view-back'); return }
   if (d.go === 'menu') { S.view = 'menu'; S.errors = {}; S.sendError = ''; render('view-back'); return }
