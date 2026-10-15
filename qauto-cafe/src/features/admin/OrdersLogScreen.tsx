@@ -55,10 +55,10 @@ export function OrdersLogScreen({ data, refresh }: { data: Data; refresh: () => 
   const cols: Column<Order>[] = [
     { key: 'time', header: 'Time', render: o => new Date(o.timestamp).toLocaleString() },
     { key: 'branch', header: 'Cafe', render: o => branchLabel(o.branch) || '—' },
-    { key: 'staff', header: 'Person', render: o => {
-      const no = o.onlineOrderId ? onlineNoOf(o.note) : null
-      return o.onlineOrderId ? <span className="flex flex-wrap items-center gap-1.5">{staffName(o)}<Badge variant="outline">Online{no ? ` #${no}` : ''}</Badge></span> : staffName(o)
-    } },
+    { key: 'source', header: 'Source', render: o => o.onlineOrderId
+      ? <Badge variant="success">Online{onlineNoOf(o.note) ? ` #${onlineNoOf(o.note)}` : ''}</Badge>
+      : <span className="text-muted-foreground">Counter</span> },
+    { key: 'staff', header: 'Person', render: o => staffName(o) },
     { key: 'dept', header: 'Department', render: o => deptName(o) },
     { key: 'items', header: 'Items', render: o => itemsText(o) },
     { key: 'paid', header: 'Paid', render: o => paymentLabel(o.paymentMethod) || '—' },
