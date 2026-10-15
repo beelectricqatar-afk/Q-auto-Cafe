@@ -38,11 +38,6 @@ export interface OnlineOrderData {
   orderId?: string
   paidBy?: PaymentMethod
   reason?: string
-  /** When each step happened (ms). Only orders moved after these were added have them. */
-  acceptedAt?: number
-  onwayAt?: number
-  deliveredAt?: number
-  rejectedAt?: number
 }
 
 export interface OnlineOrder { id: string; status: OnlineStatus; createdAt: number; updatedAt: number; data: OnlineOrderData }
@@ -138,10 +133,6 @@ export function columnOf(status: OnlineStatus): 'new' | 'making' | 'done' {
   return status === 'pending' ? 'new' : status === 'accepted' || status === 'onway' ? 'making' : 'done'
 }
 
-/** The field a move to `to` stamps with the time, so the history can say how long each step took. */
-export const STEP_AT: Partial<Record<OnlineStatus, 'acceptedAt' | 'onwayAt' | 'deliveredAt' | 'rejectedAt'>> =
-  { accepted: 'acceptedAt', onway: 'onwayAt', delivered: 'deliveredAt', rejected: 'rejectedAt' }
-
 /** The online number a POS order came from, read from the note accepting wrote on it. */
 export function onlineNoOf(note: string | undefined): number | null {
   const m = /^Online #(\d+)/.exec(note ?? '')
@@ -149,61 +140,29 @@ export function onlineNoOf(note: string | undefined): number | null {
 }
 
 const r2 = (n: number) => Math.round(n * 100) / 100
-const avgMinutes = (spans: number[]) => spans.length ? Math.round(spans.reduce((s, x) => s + x, 0) / spans.length / 60000) : null
-const ranked = (m: Map<string, number>) => [...m].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([name, n]) => ({ name, n }))
 
 export interface OnlineStats {
   orders: number
   rejected: number
-  /** Still waiting or being made. */
-  open: number
-  /** Retail orders that weren't rejected: what was (or will be) paid. */
+  /** Staff (retail) orders that weren't rejected: what was, or will be, paid. */
   sales: number
-  /** Guest orders that weren't rejected, at menu price. */
-  complimentary: number
-  byCafe: Record<Branch, number>
-  guests: number
-  staff: number
   cash: number
   card: number
-  topDrinks: { name: string; n: number }[]
-  /** Orders per hour of the day, 0–23. */
-  byHour: number[]
-  reasons: { name: string; n: number }[]
-  /** Average minutes from order to accepted / delivered, when the times were recorded. */
-  minsToAccept: number | null
-  minsToDeliver: number | null
+  /** Guest orders that weren't rejected, at menu price. */
+  complimentary: number
+  guestOrders: number
 }
 
-/** What the online orders in a period add up to. Rejected orders count as orders but not as sales. */
+/** What the online orders in a period add up to. Rejected orders count as orders but not as money. */
 export function onlineStats(list: OnlineOrder[]): OnlineStats {
-  const s: OnlineStats = {
-    orders: list.length, rejected: 0, open: 0, sales: 0, complimentary: 0, byCafe: { volkswagen: 0, audi: 0 },
-    guests: 0, staff: 0, cash: 0, card: 0, topDrinks: [], byHour: Array(24).fill(0), reasons: [], minsToAccept: null, minsToDeliver: null,
-  }
-  const drinks = new Map<string, number>(), reasons = new Map<string, number>(), toAccept: number[] = [], toDeliver: number[] = []
+  const s: OnlineStats = { orders: list.length, rejected: 0, sales: 0, cash: 0, card: 0, complimentary: 0, guestOrders: 0 }
   for (const o of list) {
     const d = o.data
-    s.byCafe[d.branch] = (s.byCafe[d.branch] ?? 0) + 1
-    s.byHour[new Date(o.createdAt).getHours()]++
-    if (d.who === 'guest') s.guests++; else s.staff++
-    if (o.status === 'rejected') {
-      s.rejected++
-      reasons.set(d.reason ?? 'No reason given', (reasons.get(d.reason ?? 'No reason given') ?? 0) + 1)
-      continue
-    }
-    if (o.status !== 'delivered') s.open++
-    if (d.who === 'guest') s.complimentary += d.subtotal
-    else {
-      s.sales += d.total
-      if ((d.paidBy ?? d.pay) === 'cash') s.cash++; else s.card++
-    }
-    for (const l of d.lines) drinks.set(l.name.trim(), (drinks.get(l.name.trim()) ?? 0) + l.qty)
-    if (d.acceptedAt) toAccept.push(d.acceptedAt - o.createdAt)
-    if (d.deliveredAt) toDeliver.push(d.deliveredAt - o.createdAt)
+    if (o.status === 'rejected') { s.rejected++; continue }
+    if (d.who === 'guest') { s.guestOrders++; s.complimentary += d.subtotal; continue }
+    s.sales += d.total
+    if ((d.paidBy ?? d.pay) === 'cash') s.cash++; else s.card++
   }
   s.sales = r2(s.sales); s.complimentary = r2(s.complimentary)
-  s.topDrinks = ranked(drinks); s.reasons = ranked(reasons)
-  s.minsToAccept = avgMinutes(toAccept); s.minsToDeliver = avgMinutes(toDeliver)
   return s
 }

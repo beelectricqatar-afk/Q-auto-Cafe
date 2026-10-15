@@ -16,7 +16,6 @@ const dayStart = (ms: number) => { const d = new Date(ms); d.setHours(0, 0, 0, 0
 const ymd = (ms: number) => { const d = new Date(ms); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` }
 const fromYmd = (s: string) => { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d).getTime() }
 const pct = (n: number, of: number) => of ? `${Math.round(n / of * 100)}%` : '—'
-const hourLabel = (h: number) => `${h % 12 || 12}${h < 12 ? 'am' : 'pm'}`
 
 type Range = 'today' | 'yesterday' | 'week' | 'month' | 'custom'
 const RANGES: [Range, string][] = [['today', 'Today'], ['yesterday', 'Yesterday'], ['week', 'Last 7 days'], ['month', 'This month'], ['custom', 'Pick dates']]
@@ -30,12 +29,6 @@ function rangeOf(r: Range, from: string, to: string): [number, number] {
   return [today, today + DAY]
 }
 
-const Box = ({ title, children, className = '' }: { title: string; children: ReactNode; className?: string }) => (
-  <div className={`grid content-start gap-3 rounded-card bg-card p-4 shadow-card ${className}`}>
-    <h3 className="m-0 text-sm font-semibold">{title}</h3>
-    {children}
-  </div>
-)
 const Stat = ({ label, value, sub }: { label: string; value: ReactNode; sub?: ReactNode }) => (
   <div className="grid content-start gap-1 rounded-card bg-card p-4 shadow-card">
     <span className="text-sm text-muted-foreground">{label}</span>
@@ -43,25 +36,6 @@ const Stat = ({ label, value, sub }: { label: string; value: ReactNode; sub?: Re
     {sub && <span className="text-xs text-muted-foreground">{sub}</span>}
   </div>
 )
-/** A labelled bar, its length relative to the biggest in the list. */
-const Bar = ({ name, n, max, tail }: { name: string; n: number; max: number; tail?: string }) => (
-  <div className="grid gap-1">
-    <div className="flex justify-between gap-2 text-sm"><span className="truncate">{name}</span><span className="tabular-nums text-muted-foreground">{tail ?? n}</span></div>
-    <div className="h-1.5 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full bg-primary" style={{ width: `${max ? n / max * 100 : 0}%` }} /></div>
-  </div>
-)
-const Split = ({ a, b }: { a: [string, number]; b: [string, number] }) => {
-  const all = a[1] + b[1]
-  return (
-    <div className="grid gap-1.5">
-      <div className="flex h-2 overflow-hidden rounded-full bg-muted">
-        {all > 0 && <div className="bg-primary" style={{ width: `${a[1] / all * 100}%` }} />}
-      </div>
-      <div className="flex justify-between text-sm"><span>{a[0]} <b className="font-semibold tabular-nums">{a[1]}</b></span><span className="text-muted-foreground">{b[0]} <b className="font-semibold text-foreground tabular-nums">{b[1]}</b></span></div>
-    </div>
-  )
-}
-
 /** Past online orders and what they add up to. For looking at, not for the PDF reports. */
 export function OnlineHistory() {
   const [range, setRange] = useState<Range>('week')
@@ -92,8 +66,6 @@ export function OnlineHistory() {
   const s = useMemo(() => onlineStats(shown), [shown])
   const allOrders = counterOrders.filter(o => !cafe || o.branch === cafe).length
   const fromOnline = counterOrders.filter(o => o.onlineOrderId && (!cafe || o.branch === cafe)).length
-  const hours = s.byHour.map((n, h) => ({ h, n })).filter(({ h, n }) => n > 0 || (h >= 7 && h <= 17))
-  const maxHour = Math.max(1, ...s.byHour)
 
   const cols: Column<OnlineOrder>[] = [
     { key: 'no', header: '#', render: o => <b className="font-semibold">#{o.data.no}</b> },
@@ -144,40 +116,8 @@ export function OnlineHistory() {
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <Stat label="Online orders" value={s.orders} sub={allOrders ? <>{pct(fromOnline, allOrders)} of all {allOrders} orders in this period</> : 'No orders in this period'} />
           <Stat label="Staff sales" value={formatQar(s.sales)} sub={`${s.card} card · ${s.cash} cash`} />
-          <Stat label="Complimentary (guests)" value={formatQar(s.complimentary)} sub={`${s.guests - shown.filter(o => o.data.who === 'guest' && o.status === 'rejected').length} guest order(s), billed to departments`} />
+          <Stat label="Complimentary (guests)" value={formatQar(s.complimentary)} sub={`${s.guestOrders} guest order(s), billed to departments`} />
           <Stat label="Rejected" value={s.rejected} sub={s.orders ? `${pct(s.rejected, s.orders)} of online orders` : '—'} />
-        </div>
-
-        <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
-          <Box title="Top online drinks">
-            {s.topDrinks.length ? s.topDrinks.slice(0, 6).map(d => <Bar key={d.name} name={d.name} n={d.n} max={s.topDrinks[0].n} />) : <span className="text-sm text-muted-foreground">No drinks yet.</span>}
-          </Box>
-          <Box title="Busiest hours">
-            <div className="flex items-end gap-1">
-              {hours.map(({ h, n }) => (
-                <div key={h} className="flex flex-1 flex-col items-center justify-end gap-1" title={`${hourLabel(h)}: ${n} order(s)`}>
-                  {n > 0 && <span className="text-[10px] tabular-nums text-muted-foreground">{n}</span>}
-                  <div className={`w-full rounded-t ${n ? 'bg-primary' : 'bg-muted'}`} style={{ height: Math.max(4, Math.round(n / maxHour * 96)) }} />
-                  <span className="text-[10px] text-muted-foreground">{hourLabel(h)}</span>
-                </div>
-              ))}
-            </div>
-          </Box>
-          <Box title="Who orders">
-            <Split a={['VW Cafe', s.byCafe.volkswagen]} b={['Audi Cafe', s.byCafe.audi]} />
-            <Split a={['Staff', s.staff]} b={['Guests', s.guests]} />
-            <Split a={['Card', s.card]} b={['Cash', s.cash]} />
-          </Box>
-          <Box title="How fast we are">
-            <div className="grid grid-cols-2 gap-3">
-              <div className="grid gap-0.5"><span className="text-xs text-muted-foreground">Order → accepted</span><b className="text-xl font-semibold tabular-nums">{s.minsToAccept === null ? '—' : `${s.minsToAccept} min`}</b></div>
-              <div className="grid gap-0.5"><span className="text-xs text-muted-foreground">Order → delivered</span><b className="text-xl font-semibold tabular-nums">{s.minsToDeliver === null ? '—' : `${s.minsToDeliver} min`}</b></div>
-            </div>
-            <span className="text-xs text-muted-foreground">Average, from orders handled after this was added.</span>
-          </Box>
-          <Box title="Why orders were rejected" className="lg:col-span-2">
-            {s.reasons.length ? s.reasons.map(r => <Bar key={r.name} name={r.name} n={r.n} max={s.reasons[0].n} />) : <span className="text-sm text-muted-foreground">Nothing rejected in this period.</span>}
-          </Box>
         </div>
 
         <div className="grid gap-2">

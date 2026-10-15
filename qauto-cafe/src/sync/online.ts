@@ -2,7 +2,7 @@
 // Customers never use this; they go through the place/status functions in
 // supabase/online-orders.sql.
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config'
-import { STEP_AT, type OnlineOrder, type OnlineOrderData, type OnlineStatus } from '../domain/online'
+import type { OnlineOrder, OnlineOrderData, OnlineStatus } from '../domain/online'
 
 interface Row { id: string; status: OnlineStatus; data: OnlineOrderData; created_at: number; updated_at: number }
 
@@ -38,12 +38,10 @@ export const onlineClient = {
    * gets null back.
    */
   async move(o: OnlineOrder, to: OnlineStatus, data: OnlineOrderData): Promise<OnlineOrder | null> {
-    const now = Date.now()
     const res = await fetch(`${SUPABASE_URL}/rest/v1/online_orders?id=eq.${encodeURIComponent(o.id)}&status=eq.${o.status}`, {
       method: 'PATCH',
       headers: headers({ Prefer: 'return=representation' }),
-      // Each step is stamped with its time, for the history.
-      body: JSON.stringify({ status: to, data: { ...data, ...(STEP_AT[to] && { [STEP_AT[to]]: now }) }, updated_at: now }),
+      body: JSON.stringify({ status: to, data, updated_at: Date.now() }),
     })
     if (!res.ok) throw new Error(`update online order: HTTP ${res.status}`)
     const rows = (await res.json()) as Row[]
