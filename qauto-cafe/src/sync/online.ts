@@ -24,6 +24,14 @@ export const onlineClient = {
     return ((await res.json()) as Row[]).map(fromRow)
   },
 
+  /** Every online order placed in [from, to), newest first. */
+  async history(from: number, to: number): Promise<OnlineOrder[]> {
+    const q = `created_at=gte.${from}&created_at=lt.${to}&order=created_at.desc&limit=5000`
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/online_orders?select=id,status,data,created_at,updated_at&${q}`, { headers: headers() })
+    if (!res.ok) throw new Error(`online history: HTTP ${res.status}`)
+    return ((await res.json()) as Row[]).map(fromRow)
+  },
+
   /**
    * Moves an order on, but only from the status this screen saw. Two tablets
    * cannot both accept the same order: the second finds it already moved and

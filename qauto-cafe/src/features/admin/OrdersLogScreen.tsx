@@ -13,6 +13,8 @@ import { paymentLabel } from '../../domain/payment'
 import { Button } from '../../components/ui/button'
 import { Input, Select, Textarea } from '../../components/ui/input'
 import { Card } from '../../components/Card'
+import { Badge } from '../../components/ui/badge'
+import { onlineNoOf } from '../../domain/online'
 
 const DELETE_PASSWORD = 'admin'
 
@@ -20,6 +22,7 @@ export function OrdersLogScreen({ data, refresh }: { data: Data; refresh: () => 
   const [orders, setOrders] = useState<Order[]>([])
   const [dept, setDept] = useState('')
   const [person, setPerson] = useState('')
+  const [source, setSource] = useState<'' | 'online' | 'counter'>('')
   const [deleting, setDeleting] = useState<Order | null>(null)
   const [password, setPassword] = useState('')
   const [reason, setReason] = useState('')
@@ -29,8 +32,9 @@ export function OrdersLogScreen({ data, refresh }: { data: Data; refresh: () => 
   const staffName = (o: Order) => o.walkin ? (o.customerName ? `Walk-in · ${o.customerName}` : 'Walk-in') : (data.staff.find(s => s.id === o.staffId)?.name ?? '—')
   const filtered = useMemo(() => orders.filter(o =>
     (!dept || o.departmentId === dept) &&
+    (!source || (source === 'online') === !!o.onlineOrderId) &&
     (!person.trim() || staffName(o).toLowerCase().includes(person.trim().toLowerCase()))
-  ), [orders, dept, person])
+  ), [orders, dept, person, source])
   const filteredTotal = useMemo(() => Math.round(filtered.reduce((s, o) => s + o.total, 0) * 100) / 100, [filtered])
   const itemsText = (o: Order) => o.lines.map(l => `${l.qty}× ${l.name}`).join(', ') + (o.discountPct ? ` · ${o.discountPct}% off` : '')
 
@@ -51,6 +55,9 @@ export function OrdersLogScreen({ data, refresh }: { data: Data; refresh: () => 
   const cols: Column<Order>[] = [
     { key: 'time', header: 'Time', render: o => new Date(o.timestamp).toLocaleString() },
     { key: 'branch', header: 'Cafe', render: o => branchLabel(o.branch) || '—' },
+    { key: 'source', header: 'Source', render: o => o.onlineOrderId
+      ? <Badge variant="success">Online{onlineNoOf(o.note) ? ` #${onlineNoOf(o.note)}` : ''}</Badge>
+      : <span className="text-muted-foreground">Counter</span> },
     { key: 'staff', header: 'Person', render: o => staffName(o) },
     { key: 'dept', header: 'Department', render: o => deptName(o) },
     { key: 'items', header: 'Items', render: o => itemsText(o) },
@@ -63,15 +70,16 @@ export function OrdersLogScreen({ data, refresh }: { data: Data; refresh: () => 
     [
       { header: 'Time', key: 'time', width: 22 },
       { header: 'Person', key: 'person', width: 26 },
+      { header: 'Source', key: 'source', width: 14 },
       { header: 'Department', key: 'department', width: 30 },
       { header: 'Items', key: 'items', width: 48 },
       { header: 'Total (QAR)', key: 'total', width: 14, money: true },
     ],
     filtered.map(o => ({
-      time: new Date(o.timestamp).toLocaleString(), cafe: branchLabel(o.branch), person: staffName(o), department: deptName(o),
+      time: new Date(o.timestamp).toLocaleString(), cafe: branchLabel(o.branch), person: staffName(o), source: o.onlineOrderId ? `Online #${onlineNoOf(o.note) ?? ''}` : 'Counter', department: deptName(o),
       items: itemsText(o), total: o.total,
     })),
-    { totals: { time: 'TOTAL', cafe: '', person: '', department: '', items: `${filtered.length} order(s)`, total: filtered.reduce((s, o) => s + o.total, 0) } },
+    { totals: { time: 'TOTAL', cafe: '', person: '', source: '', department: '', items: `${filtered.length} order(s)`, total: filtered.reduce((s, o) => s + o.total, 0) } },
   )
   return (
     <div className="grid gap-4">
@@ -83,11 +91,16 @@ export function OrdersLogScreen({ data, refresh }: { data: Data; refresh: () => 
             <option value="">All departments</option>
             {data.departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
           </Select>
+          <Select value={source} onChange={e => setSource(e.target.value as typeof source)} aria-label="Where the order came from" className="w-auto">
+            <option value="">Counter and online</option>
+            <option value="online">Online only</option>
+            <option value="counter">Counter only</option>
+          </Select>
           <Button onClick={exportXls}>Export Excel</Button>
         </div>
       </div>
       <div className="text-sm text-muted-foreground">
-        {person.trim() || dept ? <>Showing <strong className="font-semibold text-foreground">{filtered.length}</strong> order(s) · <strong className="font-semibold text-foreground">{formatQar(filteredTotal)}</strong></> : <>{filtered.length} order(s) · {formatQar(filteredTotal)} total</>}
+        {person.trim() || dept || source ? <>Showing <strong className="font-semibold text-foreground">{filtered.length}</strong> order(s) · <strong className="font-semibold text-foreground">{formatQar(filteredTotal)}</strong></> : <>{filtered.length} order(s) · {formatQar(filteredTotal)} total</>}
       </div>
       <Card padding={12}><DataTable columns={cols} rows={filtered} /></Card>
 

@@ -81,7 +81,6 @@ declare
   v_total  numeric;
   v_no     int;
   v_now    bigint := (extract(epoch from now()) * 1000)::bigint;
-  v_day    bigint := (extract(epoch from date_trunc('day', now() at time zone 'Asia/Qatar') at time zone 'Asia/Qatar') * 1000)::bigint;
   l jsonb; m jsonb; q int;
   v_id text; v_token text;
 begin
@@ -118,9 +117,10 @@ begin
   v_pct := case when v_who = 'retail' then 15 else 0 end;
   v_total := round(v_sub * (1 - v_pct / 100.0), 2);
 
-  -- Numbers restart each day (Qatar time); the lock keeps two at once apart.
+  -- One running number that never restarts, so every online order has its own;
+  -- the lock keeps two at once apart.
   perform pg_advisory_xact_lock(hashtext('online_orders_no'));
-  select coalesce(max((data->>'no')::int), 0) + 1 into v_no from online_orders where created_at >= v_day;
+  select coalesce(max((data->>'no')::int), 0) + 1 into v_no from online_orders;
 
   insert into online_orders (data, created_at, updated_at)
   values (jsonb_strip_nulls(jsonb_build_object(

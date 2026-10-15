@@ -132,3 +132,37 @@ export function totalWith(o: OnlineOrder, discountPct: number): number {
 export function columnOf(status: OnlineStatus): 'new' | 'making' | 'done' {
   return status === 'pending' ? 'new' : status === 'accepted' || status === 'onway' ? 'making' : 'done'
 }
+
+/** The online number a POS order came from, read from the note accepting wrote on it. */
+export function onlineNoOf(note: string | undefined): number | null {
+  const m = /^Online #(\d+)/.exec(note ?? '')
+  return m ? Number(m[1]) : null
+}
+
+const r2 = (n: number) => Math.round(n * 100) / 100
+
+export interface OnlineStats {
+  orders: number
+  rejected: number
+  /** Staff (retail) orders that weren't rejected: what was, or will be, paid. */
+  sales: number
+  cash: number
+  card: number
+  /** Guest orders that weren't rejected, at menu price. */
+  complimentary: number
+  guestOrders: number
+}
+
+/** What the online orders in a period add up to. Rejected orders count as orders but not as money. */
+export function onlineStats(list: OnlineOrder[]): OnlineStats {
+  const s: OnlineStats = { orders: list.length, rejected: 0, sales: 0, cash: 0, card: 0, complimentary: 0, guestOrders: 0 }
+  for (const o of list) {
+    const d = o.data
+    if (o.status === 'rejected') { s.rejected++; continue }
+    if (d.who === 'guest') { s.guestOrders++; s.complimentary += d.subtotal; continue }
+    s.sales += d.total
+    if ((d.paidBy ?? d.pay) === 'cash') s.cash++; else s.card++
+  }
+  s.sales = r2(s.sales); s.complimentary = r2(s.complimentary)
+  return s
+}
