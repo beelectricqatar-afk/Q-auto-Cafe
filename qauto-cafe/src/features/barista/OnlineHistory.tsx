@@ -29,32 +29,16 @@ function rangeOf(r: Range, from: string, to: string): [number, number] {
   return [today, today + DAY]
 }
 
-// Each total has its own colour: the chart blue, then the app's green, violet and red.
-const TONES = {
-  blue: { chip: 'bg-[#EEF1FF] text-[#465FFF]', bar: 'bg-[#465FFF]' },
-  green: { chip: 'bg-success-soft text-success', bar: 'bg-success' },
-  violet: { chip: 'bg-[#F4F3FF] text-[#6941C6]', bar: 'bg-[#7A5AF8]' },
-  red: { chip: 'bg-destructive-soft text-destructive', bar: 'bg-destructive' },
-} as const
-const ICONS = {
-  phone: <path d="M8 2h8a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zm3 17h2" />,
-  cash: <path d="M3 7h18v10H3zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM6 10v4m12-4v4" />,
-  gift: <path d="M4 11h16v9H4zM3 7h18v4H3zm9 0v13M12 7c-1.5-3-5-3-5-1s5 1 5 1zm0 0c1.5-3 5-3 5-1s-5 1-5 1z" />,
-  cross: <path d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM9 9l6 6m0-6l-6 6" />,
-}
-const Stat = ({ label, value, sub, tone, icon }: { label: string; value: ReactNode; sub?: ReactNode; tone: keyof typeof TONES; icon: keyof typeof ICONS }) => (
-  <div className="relative grid content-start gap-1 overflow-hidden rounded-card bg-card p-4 shadow-card">
-    <span className={`absolute inset-x-0 top-0 h-1 ${TONES[tone].bar}`} />
-    <div className="flex items-center justify-between gap-2">
-      <span className="text-sm text-muted-foreground">{label}</span>
-      <span className={`grid size-8 place-items-center rounded-lg ${TONES[tone].chip}`}>
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{ICONS[icon]}</svg>
-      </span>
-    </div>
+// Each total is outlined in its own colour: the chart blue, then the app's green, violet and red.
+const TONES = { blue: 'border-[#465FFF]', green: 'border-success', violet: 'border-[#7A5AF8]', red: 'border-destructive' } as const
+const Stat = ({ label, value, sub, tone }: { label: string; value: ReactNode; sub?: ReactNode; tone: keyof typeof TONES }) => (
+  <div className={'grid content-start gap-1 rounded-card border-[1.5px] bg-card p-4 ' + TONES[tone]}>
+    <span className="text-sm text-muted-foreground">{label}</span>
     <b className="text-2xl font-semibold tracking-tight tabular-nums">{value}</b>
     {sub && <span className="text-xs text-muted-foreground">{sub}</span>}
   </div>
 )
+
 /** Past online orders and what they add up to. For looking at, not for the PDF reports. */
 export function OnlineHistory() {
   const [range, setRange] = useState<Range>('week')
@@ -133,10 +117,10 @@ export function OnlineHistory() {
       {failed && <div className="rounded-card bg-warning-soft px-4 py-3 text-sm text-warning">Couldn't load online orders. Check the connection and try again.</div>}
       {list === null ? <div className="py-10 text-center text-sm text-muted-foreground">Loading…</div> : (<>
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <Stat tone="blue" icon="phone" label="Online orders" value={s.orders} sub={allOrders ? <>{pct(fromOnline, allOrders)} of all {allOrders} orders in this period</> : 'No orders in this period'} />
-          <Stat tone="green" icon="cash" label="Staff sales" value={formatQar(s.sales)} sub={`${s.card} card · ${s.cash} cash`} />
-          <Stat tone="violet" icon="gift" label="Complimentary (guests)" value={formatQar(s.complimentary)} sub={`${s.guestOrders} guest order(s), billed to departments`} />
-          <Stat tone="red" icon="cross" label="Rejected" value={s.rejected} sub={s.orders ? `${pct(s.rejected, s.orders)} of online orders` : '—'} />
+          <Stat tone="blue" label="Online orders" value={s.orders} sub={allOrders ? <>{pct(fromOnline, allOrders)} of all {allOrders} orders in this period</> : 'No orders in this period'} />
+          <Stat tone="green" label="Staff sales" value={formatQar(s.sales)} sub={`${s.card} card · ${s.cash} cash`} />
+          <Stat tone="violet" label="Complimentary (guests)" value={formatQar(s.complimentary)} sub={`${s.guestOrders} guest order(s), billed to departments`} />
+          <Stat tone="red" label="Rejected" value={s.rejected} sub={s.orders ? `${pct(s.rejected, s.orders)} of online orders` : '—'} />
         </div>
 
         <div className="grid gap-2">
