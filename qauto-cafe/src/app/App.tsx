@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useSyncExternalStore } from 'react'
 import { ToastProvider } from '../components/Toast'
 import { useData } from './useData'
 import type { SyncStatus } from '../sync/sync'
@@ -7,10 +7,18 @@ import { BaristaPanel } from '../features/barista/BaristaPanel'
 import { AdminPanel } from '../features/admin/AdminPanel'
 import { OnlineOrders } from '../features/barista/OnlineOrders'
 import { useOnlineOrders } from './useOnlineOrders'
+import { LoginScreen } from './LoginScreen'
+import { currentSession, onAuthChange } from '../sync/auth'
 import qautoLogoWhite from '../assets/brand/qauto-logo-white.svg'
 import qautoWordmarkWhite from '../assets/brand/qauto-wordmark-white.svg'
 
+/** Nothing opens until the cafe account has signed in. */
 export default function App() {
+  const session = useSyncExternalStore(onAuthChange, currentSession)
+  return session ? <CafeApp key={session.email} /> : <LoginScreen />
+}
+
+function CafeApp() {
   const { data, status, refresh } = useData()
   const [view, setView] = useState<View>('barista')
   // Checked on every screen, so a new online order rings wherever the team is.
