@@ -1,17 +1,9 @@
 // Minimal Supabase REST (PostgREST) client — just what sync needs.
 // Each row is { id, data: <full record>, updated_at }.
-import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config'
+import { SUPABASE_URL } from './config'
+import { authHeaders } from './auth'
 
 export interface Row { id: string; data: unknown; updated_at?: number }
-
-function headers(extra?: Record<string, string>): Record<string, string> {
-  return {
-    apikey: SUPABASE_ANON_KEY,
-    Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-    'Content-Type': 'application/json',
-    ...extra,
-  }
-}
 
 async function ok(res: Response, what: string): Promise<Response> {
   if (!res.ok) throw new Error(`${what}: HTTP ${res.status} ${await res.text()}`)
@@ -32,7 +24,7 @@ export const client = {
       // `order=id` is essential: offset paging without a stable sort can skip
       // rows, which here would silently drop orders.
       const url = `${SUPABASE_URL}/rest/v1/${table}?select=id,data&order=id&limit=${PAGE}&offset=${page * PAGE}`
-      const res = await ok(await fetch(url, { headers: headers() }), `fetch ${table}`)
+      const res = await ok(await fetch(url, { headers: await authHeaders() }), `fetch ${table}`)
       const rows: Row[] = await res.json()
       all.push(...rows)
       // Anything short of a full page means the end. A failed page throws above
@@ -46,53 +38,53 @@ export const client = {
     if (rows.length === 0) return
     await ok(await fetch(`${SUPABASE_URL}/rest/v1/${table}?on_conflict=id`, {
       method: 'POST',
-      headers: headers({ Prefer: 'resolution=merge-duplicates,return=minimal' }),
+      headers: await authHeaders({ Prefer: 'resolution=merge-duplicates,return=minimal' }),
       body: JSON.stringify(rows),
     }), `upsert ${table}`)
   },
   async remove(table: string, id: string): Promise<void> {
     await ok(await fetch(`${SUPABASE_URL}/rest/v1/${table}?id=eq.${encodeURIComponent(id)}`, {
       method: 'DELETE',
-      headers: headers({ Prefer: 'return=minimal' }),
+      headers: await authHeaders({ Prefer: 'return=minimal' }),
     }), `delete ${table}`)
   },
   async insertBackup(payload: unknown): Promise<void> {
     await ok(await fetch(`${SUPABASE_URL}/rest/v1/backups`, {
       method: 'POST',
-      headers: headers({ Prefer: 'return=minimal' }),
+      headers: await authHeaders({ Prefer: 'return=minimal' }),
       body: JSON.stringify({ payload }),
     }), 'insert backup')
   },
   async listBackups(): Promise<{ id: string; created_at: number; payload: any }[]> {
-    const res = await ok(await fetch(`${SUPABASE_URL}/rest/v1/backups?select=id,created_at,payload&order=created_at.desc`, { headers: headers() }), 'list backups')
+    const res = await ok(await fetch(`${SUPABASE_URL}/rest/v1/backups?select=id,created_at,payload&order=created_at.desc`, { headers: await authHeaders() }), 'list backups')
     return res.json()
   },
   async backupExists(periodKey: string): Promise<boolean> {
-    const res = await ok(await fetch(`${SUPABASE_URL}/rest/v1/backups?select=id&payload->>periodKey=eq.${encodeURIComponent(periodKey)}&limit=1`, { headers: headers() }), 'check backup')
+    const res = await ok(await fetch(`${SUPABASE_URL}/rest/v1/backups?select=id&payload->>periodKey=eq.${encodeURIComponent(periodKey)}&limit=1`, { headers: await authHeaders() }), 'check backup')
     return (await res.json()).length > 0
   },
   async pruneDailyBackupsBefore(beforeMs: number): Promise<void> {
     await fetch(`${SUPABASE_URL}/rest/v1/backups?payload->>kind=eq.daily&created_at=lt.${beforeMs}`, {
-      method: 'DELETE', headers: headers({ Prefer: 'return=minimal' }),
+      method: 'DELETE', headers: await authHeaders({ Prefer: 'return=minimal' }),
     })
   },
 
   // Requests are stored directly in the shared `meta` table (id prefixed
   // `req:`) so they are visible on every device without a dedicated table.
   async listRequests(): Promise<any[]> {
-    const res = await ok(await fetch(`${SUPABASE_URL}/rest/v1/meta?select=data&id=like.req:*`, { headers: headers() }), 'list requests')
+    const res = await ok(await fetch(`${SUPABASE_URL}/rest/v1/meta?select=data&id=like.req:*`, { headers: await authHeaders() }), 'list requests')
     return (await res.json()).map((r: any) => r.data)
   },
   async saveRequest(req: any): Promise<void> {
     await ok(await fetch(`${SUPABASE_URL}/rest/v1/meta?on_conflict=id`, {
       method: 'POST',
-      headers: headers({ Prefer: 'resolution=merge-duplicates,return=minimal' }),
+      headers: await authHeaders({ Prefer: 'resolution=merge-duplicates,return=minimal' }),
       body: JSON.stringify([{ id: `req:${req.id}`, data: req, updated_at: Date.now() }]),
     }), 'save request')
   },
   async deleteRequest(id: string): Promise<void> {
     await ok(await fetch(`${SUPABASE_URL}/rest/v1/meta?id=eq.req:${id}`, {
-      method: 'DELETE', headers: headers({ Prefer: 'return=minimal' }),
+      method: 'DELETE', headers: await authHeaders({ Prefer: 'return=minimal' }),
     }), 'delete request')
   },
 }

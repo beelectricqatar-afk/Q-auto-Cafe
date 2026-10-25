@@ -12,8 +12,9 @@ import { RequestsScreen } from './RequestsScreen'
 import { useRequests } from './useRequests'
 import {
   DashboardIcon, OrdersIcon, BillingIcon, FinanceIcon, InventoryIcon,
-  MenuRecipesIcon, DirectoryIcon, BackupIcon, RequestsIcon, ChevronIcon,
+  MenuRecipesIcon, DirectoryIcon, BackupIcon, RequestsIcon, ChevronIcon, LogoutIcon,
 } from './sidebarIcons'
+import { signOut } from '../../sync/auth'
 import qautoLogo from '../../assets/brand/qauto-logo.svg'
 import qautoWordmark from '../../assets/brand/qauto-wordmark.svg'
 
@@ -88,6 +89,20 @@ export function AdminPanel({ data, refresh }: { data: Data; refresh: () => Promi
             </div>
           </div>
         </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 20 }}>
+        <button
+          onClick={() => { void signOut() }}
+          title={collapsed ? 'Log out' : undefined}
+          className="admin-nav-item"
+          style={{
+            display: 'flex', alignItems: 'center', justifyContent: collapsed ? 'center' : 'flex-start', gap: 10, width: '100%',
+            padding: collapsed ? '10px' : '7px 10px', borderRadius: 8, border: 'none', textAlign: 'left',
+            background: 'transparent', color: '#666', fontFamily: 'Montserrat, sans-serif', fontSize: 13.5, fontWeight: 400,
+          }}
+        >
+          <LogoutIcon className="admin-nav-icon" />
+          {!collapsed && <span style={{ flex: 1 }}>Log out</span>}
+        </button>
         <button
           onClick={() => setCollapsed(c => !c)}
           title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
@@ -103,6 +118,7 @@ export function AdminPanel({ data, refresh }: { data: Data; refresh: () => Promi
           </span>
           {!collapsed && <span style={{ flex: 1 }}>Collapse</span>}
         </button>
+        </div>
       </nav>
       <section className="font-sans text-foreground" style={{ background: '#FFFFFF', padding: 24, overflow: 'auto' }}>
         {section === 'Dashboard' && <Dashboard data={data} />}
