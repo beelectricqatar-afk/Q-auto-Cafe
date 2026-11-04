@@ -23,6 +23,11 @@ export const repo = {
     const db = await getDb(); const tx = db.transaction(store, 'readwrite')
     await Promise.all(values.map(v => tx.store.put(v as any))); await tx.done
   },
+  // Bulk delete WITHOUT queueing — used by sync pull for rows deleted elsewhere.
+  async removeMany(store: StoreName, ids: string[]): Promise<void> {
+    const db = await getDb(); const tx = db.transaction(store, 'readwrite')
+    await Promise.all(ids.map(id => tx.store.delete(id))); await tx.done
+  },
   async remove(store: StoreName, id: string): Promise<void> {
     await (await getDb()).delete(store, id)
     await enqueue(store, id, 'del')

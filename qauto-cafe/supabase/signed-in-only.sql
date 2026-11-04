@@ -14,7 +14,7 @@ do $$
 declare t text;
 begin
   foreach t in array array[
-    'backups', 'categories', 'deletion_logs', 'departments', 'finance_expenses', 'finance_receipts',
+    'backups', 'categories', 'deletion_logs', 'sync_deletions', 'departments', 'finance_expenses', 'finance_receipts',
     'finance_wastages', 'ingredients', 'inventory_adjustments', 'menu_items', 'meta', 'online_orders',
     'orders', 'requests', 'staff'
   ] loop
