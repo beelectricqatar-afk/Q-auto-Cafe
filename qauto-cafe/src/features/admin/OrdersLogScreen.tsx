@@ -15,6 +15,7 @@ import { Input, Select, Textarea } from '../../components/ui/input'
 import { Card } from '../../components/Card'
 import { Badge } from '../../components/ui/badge'
 import { onlineNoOf } from '../../domain/online'
+import { useSyncVersion } from '../../sync/syncVersion'
 
 const DELETE_PASSWORD = 'admin'
 
@@ -27,7 +28,9 @@ export function OrdersLogScreen({ data, refresh }: { data: Data; refresh: () => 
   const [password, setPassword] = useState('')
   const [reason, setReason] = useState('')
   const toast = useToast()
-  useEffect(() => { repo.all('orders').then(o => setOrders(o.sort((a, b) => b.timestamp - a.timestamp))) }, [])
+  // Read again whenever another device's orders come in.
+  const synced = useSyncVersion()
+  useEffect(() => { repo.all('orders').then(o => setOrders(o.sort((a, b) => b.timestamp - a.timestamp))) }, [synced])
   const deptName = (o: Order) => o.walkin ? '—' : (data.departments.find(d => d.id === o.departmentId)?.name ?? '—')
   const staffName = (o: Order) => o.walkin ? (o.customerName ? `Walk-in · ${o.customerName}` : 'Walk-in') : (data.staff.find(s => s.id === o.staffId)?.name ?? '—')
   const filtered = useMemo(() => orders.filter(o =>

@@ -9,6 +9,7 @@ import { useToast } from '../../components/Toast'
 import { formatQar } from '../../domain/money'
 import { undoPurchase } from '../../domain/purchase'
 import { TrashIcon } from './sidebarIcons'
+import { useSyncVersion } from '../../sync/syncVersion'
 
 const SHOWN = 8
 
@@ -30,13 +31,15 @@ export function PurchasesCard({ data, refresh, onAdd, onChanged }: {
   const { confirm, dialog } = useConfirm()
   const [version, setVersion] = useState(0)
 
+  // Read again whenever another device's changes come in.
+  const synced = useSyncVersion()
   useEffect(() => {
     let live = true
     repo.all<FinanceExpense>('financeExpenses')
       .then(rows => { if (live) setPurchases(rows.filter(e => e.purchase).sort((a, b) => b.timestamp - a.timestamp || b.createdAt - a.createdAt)) })
       .catch(() => {})
     return () => { live = false }
-  }, [version])
+  }, [version, synced])
 
   const undo = async (expense: FinanceExpense) => {
     if (!await confirm({

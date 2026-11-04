@@ -28,32 +28,35 @@ export interface SyncStatus {
   failed: string[]
   /** Local changes still waiting to reach the cloud. */
   pending: number
+  /** Whether this sync brought in anything new from other devices. */
+  changed: boolean
 }
 
 let running = false
-let lastStatus: SyncStatus = { at: 0, offline: false, failed: [], pending: 0 }
+let lastStatus: SyncStatus = { at: 0, offline: false, failed: [], pending: 0, changed: false }
 
 export const lastSyncStatus = () => lastStatus
 
 export async function syncNow(): Promise<SyncStatus> {
   const pending = async () => (await repo.outboxAll()).length
   if (!isConfigured() || !navigator.onLine || running) {
-    lastStatus = { at: Date.now(), offline: !navigator.onLine, failed: lastStatus.failed, pending: await pending() }
+    lastStatus = { at: Date.now(), offline: !navigator.onLine, failed: lastStatus.failed, pending: await pending(), changed: false }
     return lastStatus
   }
   running = true
   const failed = new Set<string>()
+  let changed = false
   try {
     await backfillFirstRun()
     await pushOutbox(failed)
-    await pull(failed)
+    changed = await pull(failed)
     await maybeBackup()
   } catch {
     // Offline / transient error: keep local data and the outbox; retry next tick.
   } finally {
     running = false
   }
-  lastStatus = { at: Date.now(), offline: false, failed: [...failed].sort(), pending: await pending() }
+  lastStatus = { at: Date.now(), offline: false, failed: [...failed].sort(), pending: await pending(), changed }
   return lastStatus
 }
 
@@ -118,8 +121,10 @@ interface Bookmark { key: string; value: { at: number; fullAt: number } }
 const bookmarkKey = (store: StoreName) => `pull:${tableFor(store)}`
 const newest = (rows: Row[], from: number) => rows.reduce((m, r) => Math.max(m, r.synced_at ?? 0), from)
 
-async function pull(failed: Set<string>): Promise<void> {
+/** Returns whether anything new came down. */
+async function pull(failed: Set<string>): Promise<boolean> {
   const now = Date.now()
+  let changed = false
   const full: StoreName[] = []
   const pending = new Set((await repo.outboxAll()).map(e => e.key))
   const incremental: StoreName[] = []
@@ -135,6 +140,8 @@ async function pull(failed: Set<string>): Promise<void> {
       const rows = await client.fetchChanged(tableFor(store), b.value.at - OVERLAP_MS)
       // A change still waiting to go up is newer than what the server has.
       await repo.putMany(store, rows.filter(r => !pending.has(`${store}:${r.id}`)).map(r => r.data))
+      // The look-back brings recent rows again; only ones past the bookmark are news.
+      if (rows.some(r => (r.synced_at ?? 0) > b.value.at)) changed = true
       await repo.put('meta', { key: bookmarkKey(store), value: { at: newest(rows, b.value.at), fullAt: b.value.fullAt } })
     } catch { failed.add(tableFor(store)) /* keep the local copy and the bookmark; try again next sync */ }
   }
@@ -146,17 +153,19 @@ async function pull(failed: Set<string>): Promise<void> {
       for (const store of incremental) {
         const ids = gone.filter(g => g.tbl === tableFor(store) && !pending.has(`${store}:${g.id}`)).map(g => g.id)
         if (ids.length) await repo.removeMany(store, ids)
+        if (gone.some(g => g.tbl === tableFor(store) && g.deleted_at > d.value.at)) changed = true
       }
       await repo.put('meta', { key: DELETIONS, value: { at: gone.reduce((m, g) => Math.max(m, g.deleted_at), d.value.at), fullAt: d.value.fullAt } })
     } catch { failed.add('sync_deletions') }
   }
 
-  if (full.length) await pullReplace(full, failed, now, !d)
+  if (full.length && await pullReplace(full, failed, now, !d)) changed = true
+  return changed
 }
 
 // Download whole tables and rebuild their local stores, then overlay any
 // outbox changes still pending (protects concurrent/offline writes).
-async function pullReplace(stores: StoreName[], failed: Set<string>, now: number, startDeletions: boolean): Promise<void> {
+async function pullReplace(stores: StoreName[], failed: Set<string>, now: number, startDeletions: boolean): Promise<boolean> {
   // Fetch each table independently; a table that fails (missing or transient)
   // is simply skipped so the others still reconcile. `fetchAll` pages internally
   // and throws rather than returning a partial result, so a truncated read can
@@ -178,7 +187,7 @@ async function pullReplace(stores: StoreName[], failed: Set<string>, now: number
   }
   // Deletions before the first full download are already reflected in it.
   if (startDeletions && oldest < Infinity) await repo.put('meta', { key: DELETIONS, value: { at: oldest, fullAt: now } })
-  if (fetched.size === 0) return
+  if (fetched.size === 0) return false
   // Overlay pending local writes so they survive the rebuild.
   for (const e of await repo.outboxAll()) {
     const m = fetched.get(e.store)
@@ -186,10 +195,20 @@ async function pullReplace(stores: StoreName[], failed: Set<string>, now: number
     if (e.op === 'del') m.delete(e.id)
     else m.set(e.id, e.record)
   }
+  let changed = false
   for (const [store, m] of fetched) {
+    // Only a table that really differs from this device's copy counts as news
+    // (an empty table, with nothing to bookmark, comes down whole every time).
+    if (!changed) changed = differs(await repo.all<{ id: string }>(store), m)
     await repo.clear(store)
     await repo.putMany(store, [...m.values()])
   }
+  return changed
+}
+
+function differs(local: { id: string }[], server: Map<string, unknown>): boolean {
+  if (local.length !== server.size) return true
+  return local.some(r => JSON.stringify(r) !== JSON.stringify(server.get(r.id)))
 }
 
 const pad = (n: number) => String(n).padStart(2, '0')

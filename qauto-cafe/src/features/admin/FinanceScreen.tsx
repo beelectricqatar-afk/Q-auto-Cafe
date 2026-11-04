@@ -15,6 +15,7 @@ import { Button } from '../../components/ui/button'
 import { Input, Textarea } from '../../components/ui/input'
 import { ToggleGroup } from '../../components/ui/toggle-group'
 import { useConfirm } from '../../components/ui/confirm-dialog'
+import { useSyncVersion } from '../../sync/syncVersion'
 
 interface WastageForm {
   date: string
@@ -68,10 +69,12 @@ export function FinanceScreen({ data }: { data: Data }) {
     setDeletionLogs(deletedRows)
   }, [])
 
+  // Read again whenever another device's changes come in.
+  const synced = useSyncVersion()
   useEffect(() => {
     const id = window.setTimeout(() => { void load() }, 0)
     return () => window.clearTimeout(id)
-  }, [load])
+  }, [load, synced])
 
   const range = useMemo(
     () => rangeMode === 'month' ? monthSpanRange(monthKey, toMonthKey) : dayRange(fromDay, toDay),
