@@ -11,11 +11,14 @@ import { ordersInRange, revenue, avgOrderValue, walkinCount, topItems, topDepart
 import { Card } from '../../components/Card'
 import { MetricCard } from '../../components/MetricCard'
 import { OrdersIcon, DollarIcon, DirectoryIcon, ClockIcon, InventoryIcon } from './sidebarIcons'
+import { useSyncVersion } from '../../sync/syncVersion'
 
 export function Dashboard({ data }: { data: Data }) {
   const [orders, setOrders] = useState<Order[]>([])
   const [selection, setSelection] = useState<RangeSelection>(() => defaultSelection('today'))
-  useEffect(() => { repo.all('orders').then(setOrders) }, [])
+  // Read again whenever another device's orders come in.
+  const synced = useSyncVersion()
+  useEffect(() => { repo.all('orders').then(setOrders) }, [synced])
 
   const range = useMemo(() => selectionRange(selection), [selection])
   const inRange = useMemo(() => ordersInRange(orders, range.from, range.to), [orders, range])

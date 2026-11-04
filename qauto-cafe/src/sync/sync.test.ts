@@ -205,6 +205,17 @@ describe('downloading only what changed', () => {
     expect(calls.full).toContain('staff')
   })
 
+  it('says when something new came in, so open screens re-read', async () => {
+    onServer('orders', { id: 'o1', total: 10 })
+    expect((await syncNow()).changed).toBe(true) // the first, whole download
+    expect((await syncNow()).changed).toBe(false) // nothing new since
+    onServer('orders', { id: 'o2', total: 12 })
+    expect((await syncNow()).changed).toBe(true)
+    server.get('orders')!.delete('o1'); deletions.push({ tbl: 'orders', id: 'o1', deleted_at: clock.tick() })
+    expect((await syncNow()).changed).toBe(true)
+    expect((await syncNow()).changed).toBe(false)
+  })
+
   it('keeps downloading whole tables until the database stamps its rows', async () => {
     clock.stamp = false
     onServer('staff', { id: 's1', name: 'Alice', active: true })

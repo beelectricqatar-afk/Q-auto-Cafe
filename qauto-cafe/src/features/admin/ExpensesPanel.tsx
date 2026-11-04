@@ -14,6 +14,7 @@ import { Field } from '../../components/ui/label'
 import { Badge } from '../../components/ui/badge'
 import { useConfirm } from '../../components/ui/confirm-dialog'
 import type { ExpenseFormState } from './useExpenseForm'
+import { useSyncVersion } from '../../sync/syncVersion'
 
 // Everything here is bought with petty cash, so the method is not asked for.
 const PAID_IN = 'Cash'
@@ -42,13 +43,15 @@ export function ExpensesPanel({ state, names = [], hint }: {
 
   // Reading is the external system here, so state settles in the promise's
   // callback rather than synchronously in the effect body.
+  // Read again whenever another device's changes come in.
+  const synced = useSyncVersion()
   useEffect(() => {
     let live = true
     repo.all<FinanceExpense>('financeExpenses')
       .then(rows => { if (live) setExpenses(rows) })
       .catch(() => { /* local read; nothing useful to say */ })
     return () => { live = false }
-  }, [])
+  }, [synced])
 
   const save = async () => {
     const amount = Number(form.amountQar)

@@ -9,6 +9,7 @@ import { periodRange, PERIOD_LABELS, type PeriodKey } from '../../domain/dateRan
 import { Button } from '../../components/ui/button'
 import { Input } from '../../components/ui/input'
 import { ToggleGroup } from '../../components/ui/toggle-group'
+import { useSyncVersion } from '../../sync/syncVersion'
 
 const round2 = (n: number) => Math.round(n * 100) / 100
 const STMT_COLS = [
@@ -21,7 +22,9 @@ export function BillingScreen({ data }: { data: Data }) {
   const [orders, setOrders] = useState<Order[]>([])
   const [period, setPeriod] = useState<PeriodKey>('month')
   const [person, setPerson] = useState('')
-  useEffect(() => { repo.all('orders').then(setOrders) }, [])
+  // Read again whenever another device's orders come in.
+  const synced = useSyncVersion()
+  useEffect(() => { repo.all('orders').then(setOrders) }, [synced])
   const range = useMemo(() => periodRange(period), [period])
   const q = person.trim().toLowerCase()
 

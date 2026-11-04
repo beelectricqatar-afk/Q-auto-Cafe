@@ -1,7 +1,6 @@
 import { useState, useSyncExternalStore } from 'react'
 import { ToastProvider } from '../components/Toast'
-import { useData } from './useData'
-import type { SyncStatus } from '../sync/sync'
+import { useData, type LiveStatus } from './useData'
 import type { View } from './routes'
 import { BaristaPanel } from '../features/barista/BaristaPanel'
 import { AdminPanel } from '../features/admin/AdminPanel'
@@ -62,9 +61,9 @@ const tab = (active: boolean) => ({ background: active ? '#fff' : '#1A1A1A', col
 // Silence is only reassuring when a failure would be loud. Nothing shows while
 // syncing cleanly; a problem says what it is rather than letting records go
 // quietly missing.
-function SyncPill({ status }: { status: SyncStatus | null }) {
+function SyncPill({ status }: { status: LiveStatus | null }) {
   if (!status) return null
-  const { offline, failed, pending } = status
+  const { offline, failed, pending, failStreak } = status
   const unsent = pending > 0 ? ` · ${pending} unsent` : ''
   const pill = (background: string, text: string, title: string) => (
     <span
@@ -75,6 +74,9 @@ function SyncPill({ status }: { status: SyncStatus | null }) {
       {text}
     </span>
   )
+  // One failed sync is usually the Wi-Fi dropping for a moment, and the next
+  // try a few seconds later fixes it; only a failure that keeps coming is red.
+  if (failed.length && failStreak < 3) return pill('#f0c36a', 'Reconnecting…', "Couldn't reach the cloud just now. Everything is saved on this device and is sent automatically.")
   if (failed.length) return pill('#ff6b6b', `Sync error · ${failed.join(', ')}`, `These tables failed to sync: ${failed.join(', ')}. Local changes are kept and retried.`)
   if (offline) return pill('#f0c36a', `Offline${unsent}`, 'No connection. Orders are saved on this device and sync when it returns.')
   if (pending > 0) return pill('#f0c36a', `${pending} unsent`, 'Local changes have not reached the cloud yet.')
