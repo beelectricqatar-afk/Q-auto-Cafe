@@ -1,22 +1,35 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 
 // In-memory stand-in for Supabase so we can exercise a full push→pull round-trip.
-const { server, broken } = vi.hoisted(() => ({
+const { server, broken, pushBroken, deletions, clock, calls } = vi.hoisted(() => ({
   server: new Map<string, Map<string, any>>(),
   broken: new Set<string>(), // tables the fake backend refuses, e.g. a missing one
+  pushBroken: new Set<string>(), // tables it reads but refuses writes to
+  deletions: [] as { tbl: string; id: string; deleted_at: number }[],
+  // The database's own clock: every write is stamped, ten minutes apart.
+  clock: { now: 1_000_000_000_000, stamp: true, tick() { this.now += 600_000; return this.now } },
+  calls: { full: [] as string[], changed: [] as string[] },
 }))
+const stamp = <T extends object>(r: T): T => clock.stamp ? { ...r, synced_at: clock.tick() } : r
 vi.mock('./client', () => ({
   client: {
     async fetchAll(table: string) {
       if (broken.has(table)) throw new Error(`fetch ${table}: HTTP 404`)
-      return [...(server.get(table)?.values() ?? [])].map(r => ({ id: r.id, data: r.data }))
+      calls.full.push(table)
+      return [...(server.get(table)?.values() ?? [])].map(r => ({ id: r.id, data: r.data, synced_at: r.synced_at }))
     },
+    async fetchChanged(table: string, since: number) {
+      if (broken.has(table)) throw new Error(`fetch ${table}: HTTP 404`)
+      calls.changed.push(table)
+      return [...(server.get(table)?.values() ?? [])].filter(r => r.synced_at > since).map(r => ({ id: r.id, data: r.data, synced_at: r.synced_at }))
+    },
+    async fetchDeletions(since: number) { return deletions.filter(d => d.deleted_at > since) },
     async upsert(table: string, rows: any[]) {
-      if (broken.has(table)) throw new Error(`upsert ${table}: HTTP 404`)
+      if (broken.has(table) || pushBroken.has(table)) throw new Error(`upsert ${table}: HTTP 409`)
       const m = server.get(table) ?? server.set(table, new Map()).get(table)!
-      for (const r of rows) m.set(r.id, r)
+      for (const r of rows) m.set(r.id, stamp(r))
     },
-    async remove(table: string, id: string) { server.get(table)?.delete(id) },
+    async remove(table: string, id: string) { server.get(table)?.delete(id); deletions.push({ tbl: table, id, deleted_at: clock.tick() }) },
     async insertBackup() {},
   },
 }))
@@ -26,7 +39,17 @@ import { syncNow } from './sync'
 
 async function clearOutbox() { for (const e of await repo.outboxAll()) await repo.outboxRemove(e.key) }
 
-beforeEach(async () => { server.clear(); broken.clear(); await repo.clearAll(); await clearOutbox() })
+/** Puts rows straight on the server, as another device would. */
+function onServer(table: string, ...rows: ({ id: string } & Record<string, unknown>)[]) {
+  const m = server.get(table) ?? server.set(table, new Map()).get(table)!
+  for (const r of rows) m.set(r.id, stamp({ id: r.id, data: r }))
+}
+
+beforeEach(async () => {
+  server.clear(); broken.clear(); pushBroken.clear(); deletions.length = 0; calls.full.length = 0; calls.changed.length = 0; clock.stamp = true
+  vi.useRealTimers()
+  await repo.clearAll(); await clearOutbox()
+})
 
 describe('syncNow', () => {
   it('pushes a local write up, clears the outbox, and keeps it locally', async () => {
@@ -112,5 +135,82 @@ describe('syncNow status', () => {
   it('clears the pending count once the change lands', async () => {
     await repo.put('categories', { id: 'c1', name: 'Hot Drinks', sortOrder: 1 })
     expect((await syncNow()).pending).toBe(0)
+  })
+})
+
+describe('downloading only what changed', () => {
+  beforeEach(async () => { await repo.put('meta', { key: 'syncInitialized', value: true }) })
+
+  it('downloads a table whole once, then only its changes', async () => {
+    onServer('staff', { id: 's1', name: 'Alice', active: true })
+    await syncNow()
+    expect(calls.full).toContain('staff')
+    calls.full.length = 0
+    await syncNow()
+    expect(calls.full).not.toContain('staff')
+    expect(calls.changed).toContain('staff')
+  })
+
+  it('picks up a change another device made', async () => {
+    onServer('staff', { id: 's1', name: 'Alice', active: true })
+    await syncNow()
+    onServer('staff', { id: 's1', name: 'Alice B', active: true }, { id: 's2', name: 'Bob', active: true })
+    await syncNow()
+    expect((await repo.get('staff', 's1'))?.name).toBe('Alice B')
+    expect((await repo.get('staff', 's2'))?.name).toBe('Bob')
+  })
+
+  it('removes a row another device deleted', async () => {
+    onServer('categories', { id: 'c1', name: 'Hot', sortOrder: 1 }, { id: 'c2', name: 'Iced', sortOrder: 2 })
+    await syncNow()
+    server.get('categories')!.delete('c2'); deletions.push({ tbl: 'categories', id: 'c2', deleted_at: clock.tick() })
+    await syncNow()
+    expect(await repo.get('categories', 'c2')).toBeUndefined()
+    expect(await repo.get('categories', 'c1')).toBeDefined()
+  })
+
+  it('never overwrites a change that could not go up yet', async () => {
+    onServer('categories', { id: 'c1', name: 'Hot', sortOrder: 1 })
+    await syncNow()
+    pushBroken.add('categories') // it can't go up, but downloads still work
+    await repo.put('categories', { id: 'c1', name: 'Hot Drinks', sortOrder: 1 })
+    onServer('categories', { id: 'c1', name: 'Hot (other device)', sortOrder: 1 })
+    await syncNow()
+    expect((await repo.get('categories', 'c1'))?.name).toBe('Hot Drinks')
+    pushBroken.delete('categories')
+    await syncNow() // now it goes up, and comes back down as the server's copy
+    expect(server.get('categories')?.get('c1')?.data.name).toBe('Hot Drinks')
+    expect((await repo.get('categories', 'c1'))?.name).toBe('Hot Drinks')
+  })
+
+  it('keeps an order made offline when the server has other changes', async () => {
+    onServer('orders', { id: 'o1', total: 10 })
+    await syncNow()
+    broken.add('orders')
+    await repo.put('orders', { id: 'o2', total: 12 })
+    await syncNow() // o2 can't go up; it stays queued and local
+    broken.delete('orders')
+    onServer('orders', { id: 'o3', total: 8 })
+    await syncNow()
+    expect((await repo.all<{ id: string }>('orders')).map(o => o.id).sort()).toEqual(['o1', 'o2', 'o3'])
+    expect(server.get('orders')?.has('o2')).toBe(true)
+  })
+
+  it('downloads whole again once a week, to correct anything ever missed', async () => {
+    onServer('staff', { id: 's1', name: 'Alice', active: true })
+    await syncNow()
+    vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(Date.now() + 8 * 86400000)
+    calls.full.length = 0
+    await syncNow()
+    expect(calls.full).toContain('staff')
+  })
+
+  it('keeps downloading whole tables until the database stamps its rows', async () => {
+    clock.stamp = false
+    onServer('staff', { id: 's1', name: 'Alice', active: true })
+    await syncNow(); calls.full.length = 0
+    await syncNow()
+    expect(calls.full).toContain('staff')
+    expect(calls.changed).not.toContain('staff')
   })
 })

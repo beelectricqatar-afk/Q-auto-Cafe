@@ -3,7 +3,8 @@
 import { SUPABASE_URL } from './config'
 import { authHeaders } from './auth'
 
-export interface Row { id: string; data: unknown; updated_at?: number }
+export interface Row { id: string; data: unknown; updated_at?: number; synced_at?: number }
+export interface Deletion { tbl: string; id: string; deleted_at: number }
 
 async function ok(res: Response, what: string): Promise<Response> {
   if (!res.ok) throw new Error(`${what}: HTTP ${res.status} ${await res.text()}`)
@@ -17,22 +18,39 @@ async function ok(res: Response, what: string): Promise<Response> {
 const PAGE = 1000
 const MAX_PAGES = 200 // a stop, so a misbehaving server cannot spin forever
 
+// Walks every page of a query. A stable sort is essential: offset paging
+// without one can skip rows, which here would silently drop orders. Anything
+// short of a full page means the end; a failed page throws rather than
+// returning what it has, so a partial result never reaches the caller and
+// cannot wipe local data.
+async function allPages<T>(what: string, query: (page: string) => string): Promise<T[]> {
+  const all: T[] = []
+  for (let page = 0; page < MAX_PAGES; page++) {
+    const res = await ok(await fetch(`${SUPABASE_URL}/rest/v1/${query(`limit=${PAGE}&offset=${page * PAGE}`)}`, { headers: await authHeaders() }), what)
+    const rows: T[] = await res.json()
+    all.push(...rows)
+    if (rows.length < PAGE) return all
+  }
+  throw new Error(`${what}: more than ${MAX_PAGES * PAGE} rows`)
+}
+
 export const client = {
+  /** The whole table. Falls back to id and data alone where synced_at isn't set up yet. */
   async fetchAll(table: string): Promise<Row[]> {
-    const all: Row[] = []
-    for (let page = 0; page < MAX_PAGES; page++) {
-      // `order=id` is essential: offset paging without a stable sort can skip
-      // rows, which here would silently drop orders.
-      const url = `${SUPABASE_URL}/rest/v1/${table}?select=id,data&order=id&limit=${PAGE}&offset=${page * PAGE}`
-      const res = await ok(await fetch(url, { headers: await authHeaders() }), `fetch ${table}`)
-      const rows: Row[] = await res.json()
-      all.push(...rows)
-      // Anything short of a full page means the end. A failed page throws above
-      // rather than returning what it has, so a partial result never reaches the
-      // caller and cannot wipe local data.
-      if (rows.length < PAGE) return all
+    try {
+      return await allPages<Row>(`fetch ${table}`, p => `${table}?select=id,data,synced_at&order=id&${p}`)
+    } catch (e) {
+      if (!/HTTP 400/.test(String(e))) throw e
+      return allPages<Row>(`fetch ${table}`, p => `${table}?select=id,data&order=id&${p}`)
     }
-    throw new Error(`fetch ${table}: more than ${MAX_PAGES * PAGE} rows`)
+  },
+  /** Only the rows the database wrote after `since` (its own clock, ms). */
+  async fetchChanged(table: string, since: number): Promise<Row[]> {
+    return allPages<Row>(`fetch ${table}`, p => `${table}?select=id,data,synced_at&synced_at=gt.${since}&order=synced_at,id&${p}`)
+  },
+  /** Rows deleted after `since`, from any table. */
+  async fetchDeletions(since: number): Promise<Deletion[]> {
+    return allPages<Deletion>('fetch sync_deletions', p => `sync_deletions?select=tbl,id,deleted_at&deleted_at=gt.${since}&order=deleted_at,tbl,id&${p}`)
   },
   async upsert(table: string, rows: Row[]): Promise<void> {
     if (rows.length === 0) return

@@ -1,8 +1,9 @@
 // Sync engine: local-first IndexedDB mirrored to Supabase.
 //
-// syncNow() = push queued local changes, then pull the authoritative server
-// state and rebuild the local mirror (overlaying any still-pending local
-// writes so offline orders are never lost). Runs on app load, on reconnect,
+// syncNow() = push queued local changes, then pull what changed on the server
+// since the last sync (a whole table only now and then; see pull) into the
+// local mirror, never over a still-pending local write, so offline orders
+// are never lost. Runs on app load, on reconnect,
 // on tab focus, and after every mutation. No-ops cleanly when offline or
 // unconfigured. Also takes a backup snapshot every 12 hours.
 import { repo } from '../db/repo'
@@ -45,7 +46,7 @@ export async function syncNow(): Promise<SyncStatus> {
   try {
     await backfillFirstRun()
     await pushOutbox(failed)
-    await pullReplace(failed)
+    await pull(failed)
     await maybeBackup()
   } catch {
     // Offline / transient error: keep local data and the outbox; retry next tick.
@@ -103,20 +104,80 @@ async function pushOutbox(failed: Set<string>): Promise<void> {
   }
 }
 
-// Pull the full server state for every table and rebuild local stores, then
-// overlay any outbox changes still pending (protects concurrent/offline writes).
-async function pullReplace(failed: Set<string>): Promise<void> {
+// Each table keeps a bookmark: the database's own time of the newest change
+// this device has seen. A sync then downloads only rows written after it,
+// and the rows deleted after it, instead of the whole table every time. A
+// table with no bookmark yet, or whose last full download is a week old, is
+// downloaded whole and rebuilt, which also corrects anything ever missed.
+const FULL_EVERY_MS = 7 * 86400000
+// Rows a slow transaction stamped just before the bookmark but saved just
+// after it would be skipped, so each sync looks back a little further.
+const OVERLAP_MS = 2 * 60000
+const DELETIONS = 'pull:_deletions'
+interface Bookmark { key: string; value: { at: number; fullAt: number } }
+const bookmarkKey = (store: StoreName) => `pull:${tableFor(store)}`
+const newest = (rows: Row[], from: number) => rows.reduce((m, r) => Math.max(m, r.synced_at ?? 0), from)
+
+async function pull(failed: Set<string>): Promise<void> {
+  const now = Date.now()
+  const full: StoreName[] = []
+  const pending = new Set((await repo.outboxAll()).map(e => e.key))
+  const incremental: StoreName[] = []
+  for (const store of syncStores()) {
+    const b = await repo.get<Bookmark>('meta', bookmarkKey(store))
+    if (b && now - b.value.fullAt < FULL_EVERY_MS) incremental.push(store)
+    else full.push(store)
+  }
+
+  for (const store of incremental) {
+    const b = (await repo.get<Bookmark>('meta', bookmarkKey(store)))!
+    try {
+      const rows = await client.fetchChanged(tableFor(store), b.value.at - OVERLAP_MS)
+      // A change still waiting to go up is newer than what the server has.
+      await repo.putMany(store, rows.filter(r => !pending.has(`${store}:${r.id}`)).map(r => r.data))
+      await repo.put('meta', { key: bookmarkKey(store), value: { at: newest(rows, b.value.at), fullAt: b.value.fullAt } })
+    } catch { failed.add(tableFor(store)) /* keep the local copy and the bookmark; try again next sync */ }
+  }
+
+  const d = await repo.get<Bookmark>('meta', DELETIONS)
+  if (d && incremental.length) {
+    try {
+      const gone = await client.fetchDeletions(d.value.at - OVERLAP_MS)
+      for (const store of incremental) {
+        const ids = gone.filter(g => g.tbl === tableFor(store) && !pending.has(`${store}:${g.id}`)).map(g => g.id)
+        if (ids.length) await repo.removeMany(store, ids)
+      }
+      await repo.put('meta', { key: DELETIONS, value: { at: gone.reduce((m, g) => Math.max(m, g.deleted_at), d.value.at), fullAt: d.value.fullAt } })
+    } catch { failed.add('sync_deletions') }
+  }
+
+  if (full.length) await pullReplace(full, failed, now, !d)
+}
+
+// Download whole tables and rebuild their local stores, then overlay any
+// outbox changes still pending (protects concurrent/offline writes).
+async function pullReplace(stores: StoreName[], failed: Set<string>, now: number, startDeletions: boolean): Promise<void> {
   // Fetch each table independently; a table that fails (missing or transient)
   // is simply skipped so the others still reconcile. `fetchAll` pages internally
   // and throws rather than returning a partial result, so a truncated read can
   // never reach the clear-and-rewrite below.
   const fetched = new Map<StoreName, Map<string, unknown>>()
-  for (const store of syncStores()) {
+  let oldest = Infinity
+  for (const store of stores) {
     try {
       const rows = await client.fetchAll(tableFor(store))
       fetched.set(store, new Map(rows.map(r => [r.id, r.data])))
+      const at = newest(rows, 0)
+      // Only a table the database stamps can be followed by its changes;
+      // until then (or while it's empty) it is simply downloaded whole.
+      if (at > 0) {
+        await repo.put('meta', { key: bookmarkKey(store), value: { at, fullAt: now } })
+        oldest = Math.min(oldest, at)
+      }
     } catch { failed.add(tableFor(store)) /* skip this table, keep local copy */ }
   }
+  // Deletions before the first full download are already reflected in it.
+  if (startDeletions && oldest < Infinity) await repo.put('meta', { key: DELETIONS, value: { at: oldest, fullAt: now } })
   if (fetched.size === 0) return
   // Overlay pending local writes so they survive the rebuild.
   for (const e of await repo.outboxAll()) {
